@@ -1,7 +1,7 @@
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::{JavaBoolean, JavaInt};
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::{JavaBoolean, JavaInt};
 use crate::tests::common::get_vm;
 
 #[test]

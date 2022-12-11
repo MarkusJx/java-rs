@@ -1,7 +1,7 @@
-use crate::jni::class_constructor::ClassConstructor;
-use crate::jni::java_type::Type;
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::objects::string::JavaString;
+use crate::java::class_constructor::ClassConstructor;
+use crate::java::java_type::Type;
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::objects::string::JavaString;
 use crate::tests::common::get_vm;
 
 #[test]

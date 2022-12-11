@@ -1,28 +1,28 @@
-use crate::jni::java_env_wrapper::JavaEnvWrapper;
-use crate::jni::java_type::JavaType;
-use crate::jni::java_vm::{InternalJavaOptions, JavaVM};
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::traits::{GetRaw, IsInstanceOf};
-use crate::jni::util::util::{jni_version_to_string, ResultType};
-use crate::jni::vm_ptr::JavaVMPtr;
+use crate::java::java_env_wrapper::JavaEnvWrapper;
+use crate::java::java_type::JavaType;
+use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::traits::{GetRaw, IsInstanceOf};
+use crate::java::util::util::{jni_version_to_string, ResultType};
+use crate::java::vm_ptr::JavaVMPtr;
 use crate::{define_object_to_val_method, sys};
 use std::sync::{Arc, Mutex};
 
 /// The pointer to a java environment.
 /// This should not be copied or created manually.
-/// It is created by the [`JavaVM`](crate::jni::java_vm::JavaVM) struct.
+/// It is created by the [`JavaVM`](crate::java::java_vm::JavaVM) struct.
 /// You should also not move this between threads as it will likely
 /// cause the program to segfault, or at least to panic once this is dropped,
 /// since an environment is tied to a thread.
 /// If you need a java environment inside a new thread, create a new on using
-/// [`JavaVM::attach_thread`](crate::jni::java_vm::JavaVM::attach_thread).
+/// [`JavaVM::attach_thread`](crate::java::java_vm::JavaVM::attach_thread).
 pub struct JavaEnv<'a>(JavaEnvWrapper<'a>);
 
 impl<'a> JavaEnv<'a> {
     /// You should probably not use this.
-    pub(in crate::jni) fn new(
+    pub(in crate::java) fn new(
         jvm: Arc<Mutex<JavaVMPtr>>,
         options: InternalJavaOptions,
         env: *mut sys::JNIEnv,
@@ -191,7 +191,7 @@ impl<'a> JavaEnv<'a> {
         self.0.replace_class_loader(class_loader)
     }
 
-    pub(in crate::jni) fn thread_set_context_classloader(&self) -> ResultType<()> {
+    pub(in crate::java) fn thread_set_context_classloader(&self) -> ResultType<()> {
         if self.get_class_loader().is_err() {
             return Ok(());
         }
@@ -209,13 +209,13 @@ impl<'a> JavaEnv<'a> {
         )
     }
 
-    pub(in crate::jni) fn delete_global_ref(&self, object: sys::jobject) -> () {
+    pub(in crate::java) fn delete_global_ref(&self, object: sys::jobject) -> () {
         unsafe {
             self.0.methods.DeleteGlobalRef.unwrap()(self.0.env, object);
         }
     }
 
-    pub(in crate::jni) fn get_env(&'a self) -> &'a JavaEnvWrapper<'a> {
+    pub(in crate::java) fn get_env(&'a self) -> &'a JavaEnvWrapper<'a> {
         &self.0
     }
 }

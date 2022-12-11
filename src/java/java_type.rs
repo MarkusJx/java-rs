@@ -1,6 +1,6 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::util::util::{jni_type_to_java_type, ResultType};
+use crate::java::java_env::JavaEnv;
+use crate::java::objects::class::JavaClass;
+use crate::java::util::util::{jni_type_to_java_type, ResultType};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -209,8 +209,8 @@ impl JavaType {
     }
 
     /// Get the return type of a jni method signature. This is used by
-    /// [`get_method_id`](crate::jni::java_env_wrapper::JavaEnvWrapper::get_method_id) and
-    /// [`get_static_method_id`](crate::jni::java_env_wrapper::JavaEnvWrapper::get_static_method_id).
+    /// [`get_method_id`](crate::java::java_env_wrapper::JavaEnvWrapper::get_method_id) and
+    /// [`get_static_method_id`](crate::java::java_env_wrapper::JavaEnvWrapper::get_static_method_id).
     ///
     /// # Examples
     /// ```rust

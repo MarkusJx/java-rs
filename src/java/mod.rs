@@ -1,7 +1,6 @@
 pub mod class_constructor;
 pub mod class_field;
 pub mod class_method;
-pub mod ext;
 pub mod java_call_result;
 pub mod java_env;
 mod java_env_wrapper;

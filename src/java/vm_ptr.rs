@@ -1,5 +1,5 @@
-use crate::jni::java_vm::InternalJavaOptions;
-use crate::jni::objects::object::GlobalJavaObject;
+use crate::java::java_vm::InternalJavaOptions;
+use crate::java::objects::object::GlobalJavaObject;
 use crate::sys;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -24,7 +24,7 @@ pub struct JavaVMPtr {
 }
 
 impl JavaVMPtr {
-    pub(in crate::jni) fn new(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
+    pub(in crate::java) fn new(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
         let mut res = Self {
             vm: AtomicPtr::new(vm),
             options,
@@ -37,7 +37,7 @@ impl JavaVMPtr {
         return res;
     }
 
-    pub(in crate::jni) fn from_raw(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
+    pub(in crate::java) fn from_raw(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
         Self {
             vm: AtomicPtr::new(vm),
             options,
@@ -48,22 +48,22 @@ impl JavaVMPtr {
     }
 
     /// Set the class loader
-    pub(in crate::jni) fn set_class_loader(&mut self, class_loader: GlobalJavaObject) {
+    pub(in crate::java) fn set_class_loader(&mut self, class_loader: GlobalJavaObject) {
         self.class_loader = Some(class_loader);
     }
 
     /// Get the class loader
-    pub(in crate::jni) fn class_loader(&self) -> &Option<GlobalJavaObject> {
+    pub(in crate::java) fn class_loader(&self) -> &Option<GlobalJavaObject> {
         &self.class_loader
     }
 
     /// Get the JNI methods
-    pub(in crate::jni) unsafe fn methods(&self) -> sys::JNIInvokeInterface_ {
+    pub(in crate::java) unsafe fn methods(&self) -> sys::JNIInvokeInterface_ {
         *(*self.vm())
     }
 
     /// Get the JavaVM pointer
-    pub(in crate::jni) unsafe fn vm(&self) -> *mut sys::JavaVM {
+    pub(in crate::java) unsafe fn vm(&self) -> *mut sys::JavaVM {
         self.vm.load(Ordering::Relaxed)
     }
 
@@ -87,13 +87,13 @@ impl JavaVMPtr {
     }
 
     /// Increments the reference count for the current thread.
-    pub(in crate::jni) fn increase_ref_count(&mut self) {
+    pub(in crate::java) fn increase_ref_count(&mut self) {
         self.update_ref_count(|count| count + 1);
     }
 
     /// Decrements the reference count for the current thread.
     /// If the reference count is 0, the thread will be detached.
-    pub(in crate::jni) fn decrease_ref_count(&mut self) {
+    pub(in crate::java) fn decrease_ref_count(&mut self) {
         self.update_ref_count(|count| count - 1);
     }
 }

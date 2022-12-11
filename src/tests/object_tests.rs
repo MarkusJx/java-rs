@@ -1,8 +1,8 @@
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::object::GlobalJavaObject;
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::JavaInt;
-use crate::jni::traits::GetSignature;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::object::GlobalJavaObject;
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::JavaInt;
+use crate::java::traits::GetSignature;
 use crate::tests::common::get_vm;
 
 #[test]

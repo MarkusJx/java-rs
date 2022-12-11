@@ -1,12 +1,12 @@
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::GlobalJavaObject;
-use crate::jni::objects::value::{
+use crate::java::java_type::JavaType;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::GlobalJavaObject;
+use crate::java::objects::value::{
     JavaBoolean, JavaByte, JavaChar, JavaDouble, JavaFloat, JavaInt, JavaLong, JavaNull, JavaShort,
     JavaValue,
 };
-use crate::jni::traits::{GetSignature, ToJavaValue};
-use crate::jni::util::util::ResultType;
+use crate::java::traits::{GetSignature, ToJavaValue};
+use crate::java::util::util::ResultType;
 use std::error::Error;
 
 #[derive(Clone)]

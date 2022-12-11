@@ -1,9 +1,9 @@
-use crate::jni::ext;
-use crate::jni::ext::library::{library_loaded, load_library};
-use crate::jni::java_env::JavaEnv;
-use crate::jni::jni_error::JNIError;
-use crate::jni::util::util::{jni_error_to_string, parse_jni_version, ResultType};
-use crate::jni::vm_ptr::JavaVMPtr;
+use crate::java::java_env::JavaEnv;
+use crate::java::jni_error::JNIError;
+use crate::java::util::util::{jni_error_to_string, parse_jni_version, ResultType};
+use crate::java::vm_ptr::JavaVMPtr;
+use crate::library;
+use crate::library::library::{library_loaded, load_library};
 use crate::sys;
 use std::error::Error;
 use std::ffi::{c_void, CString};
@@ -52,7 +52,7 @@ impl JavaVM {
             load_library(lib_path.as_str())?;
         }
 
-        let create_fn = ext::library::get_jni_create_java_vm()?;
+        let create_fn = library::library::get_jni_create_java_vm()?;
         let mut ptr: *mut sys::JavaVM = std::ptr::null_mut();
         let mut env: *mut sys::JNIEnv = std::ptr::null_mut();
 
@@ -66,7 +66,7 @@ impl JavaVM {
             opts.push(jvm_opt);
         }
 
-        let mut vm_args = sys::JavaVMInitArgs {
+        let vm_args = sys::JavaVMInitArgs {
             version: parse_jni_version(version.as_str())? as i32,
             options: opts.as_mut_ptr() as _,
             nOptions: opts.len() as _,
@@ -77,11 +77,11 @@ impl JavaVM {
             create_fn(
                 &mut ptr,
                 &mut env as *mut *mut sys::JNIEnv as *mut *mut std::os::raw::c_void,
-                &mut vm_args as *mut sys::JavaVMInitArgs as *mut std::os::raw::c_void,
+                &vm_args as *const _ as _,
             )
         };
 
-        if create_res != 0 {
+        if create_res != 0 || ptr.is_null() {
             return Err(JNIError::new(format!(
                 "Failed to create JavaVM: {}",
                 jni_error_to_string(create_res)
@@ -98,7 +98,7 @@ impl JavaVM {
         Ok(Self { ptr, options })
     }
 
-    pub(in crate::jni) fn from_existing(
+    pub(in crate::java) fn from_existing(
         ptr: Arc<Mutex<JavaVMPtr>>,
         options: InternalJavaOptions,
     ) -> Self {
@@ -180,4 +180,12 @@ unsafe impl Send for JavaVM {}
 #[derive(Copy, Clone)]
 pub struct InternalJavaOptions {
     pub use_daemon_threads: bool,
+}
+
+impl Default for InternalJavaOptions {
+    fn default() -> Self {
+        Self {
+            use_daemon_threads: false,
+        }
+    }
 }

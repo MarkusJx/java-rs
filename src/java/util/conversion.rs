@@ -1,14 +1,14 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_field::GlobalJavaField;
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::array::JavaObjectArray;
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::constructor::GlobalJavaConstructor;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::method::GlobalJavaMethod;
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::objects::string::JavaString;
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_field::GlobalJavaField;
+use crate::java::java_type::JavaType;
+use crate::java::objects::array::JavaObjectArray;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::constructor::GlobalJavaConstructor;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::method::GlobalJavaMethod;
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::objects::string::JavaString;
+use crate::java::util::util::ResultType;
 
 pub fn parameter_to_type(env: &JavaEnv, parameter: &LocalJavaObject) -> ResultType<JavaType> {
     let parameter_class = env.find_class("java/lang/reflect/Parameter")?;

@@ -1,11 +1,11 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::jni_error::JNIError;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::objects::value::JavaValue;
-use crate::jni::traits::{GetRaw, IsNull, ToJavaValue};
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::jni_error::JNIError;
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::objects::value::JavaValue;
+use crate::java::traits::{GetRaw, IsNull, ToJavaValue};
+use crate::java::util::util::ResultType;
 use crate::{define_array, sys};
 
 pub struct JavaArray<'a> {

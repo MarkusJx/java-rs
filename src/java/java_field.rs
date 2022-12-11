@@ -1,10 +1,10 @@
-use crate::jni::java_call_result::JavaCallResult;
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_type::{JavaType, Type};
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::traits::IsNull;
-use crate::jni::util::util::ResultType;
+use crate::java::java_call_result::JavaCallResult;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_type::{JavaType, Type};
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::java_object::JavaObject;
+use crate::java::traits::IsNull;
+use crate::java::util::util::ResultType;
 use crate::{define_field, sys};
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -18,7 +18,7 @@ pub struct JavaField<'a> {
 }
 
 impl<'a> JavaField<'a> {
-    pub(in crate::jni) unsafe fn new(
+    pub(in crate::java) unsafe fn new(
         field: sys::jfieldID,
         field_type: JavaType,
         class: &'a JavaClass<'a>,
@@ -33,7 +33,7 @@ impl<'a> JavaField<'a> {
         }
     }
 
-    pub(in crate::jni) unsafe fn id(&self) -> sys::jfieldID {
+    pub(in crate::java) unsafe fn id(&self) -> sys::jfieldID {
         self.field
     }
 }
@@ -213,7 +213,7 @@ impl<'a> JavaObjectField<'a> {
         }
     }
 
-    pub(in crate::jni) unsafe fn id(&self) -> sys::jfieldID {
+    pub(in crate::java) unsafe fn id(&self) -> sys::jfieldID {
         self.0.id()
     }
 }
@@ -284,7 +284,7 @@ impl<'a> StaticJavaObjectField<'a> {
         }
     }
 
-    pub(in crate::jni) unsafe fn id(&self) -> sys::jfieldID {
+    pub(in crate::java) unsafe fn id(&self) -> sys::jfieldID {
         self.0.id()
     }
 }

@@ -1,23 +1,23 @@
-use crate::jni::java_call_result::JavaCallResult;
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_type::{JavaType, Type};
-use crate::jni::java_vm::JavaVM;
-use crate::jni::objects::args::JavaArgs;
-use crate::jni::objects::array::JavaObjectArray;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::method::{
+use crate::java::java_call_result::JavaCallResult;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_type::{JavaType, Type};
+use crate::java::java_vm::JavaVM;
+use crate::java::objects::args::JavaArgs;
+use crate::java::objects::array::JavaObjectArray;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::method::{
     GlobalJavaMethod, JavaBooleanMethod, JavaByteMethod, JavaCharMethod, JavaDoubleMethod,
     JavaFloatMethod, JavaIntMethod, JavaLongMethod, JavaObjectMethod, JavaShortMethod,
     JavaVoidMethod, StaticJavaBooleanMethod, StaticJavaByteMethod, StaticJavaCharMethod,
     StaticJavaDoubleMethod, StaticJavaFloatMethod, StaticJavaIntMethod, StaticJavaLongMethod,
     StaticJavaObjectMethod, StaticJavaShortMethod, StaticJavaVoidMethod,
 };
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::traits::IsNull;
-use crate::jni::util::conversion::{
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::traits::IsNull;
+use crate::java::util::conversion::{
     get_method_from_signature, get_method_name, get_method_parameters, get_method_return_type,
 };
-use crate::jni::util::util::{method_is_public, ResultType};
+use crate::java::util::util::{method_is_public, ResultType};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -66,7 +66,7 @@ impl ClassMethod {
         Ok(res)
     }
 
-    pub(crate) fn parameter_types(&self) -> &Vec<JavaType> {
+    pub fn parameter_types(&self) -> &Vec<JavaType> {
         &self.parameter_types
     }
 

@@ -1,8 +1,8 @@
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::method::{GlobalJavaMethod, JavaCharMethod, JavaIntMethod};
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::{JavaByte, JavaChar, JavaInt};
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::method::{GlobalJavaMethod, JavaCharMethod, JavaIntMethod};
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::{JavaByte, JavaChar, JavaInt};
 use crate::tests::common::get_vm;
 
 macro_rules! get_integer {

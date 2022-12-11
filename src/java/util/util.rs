@@ -1,8 +1,8 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::jni_error::JNIError;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::objects::value::JavaInt;
+use crate::java::java_env::JavaEnv;
+use crate::java::jni_error::JNIError;
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::objects::value::JavaInt;
 use crate::sys;
 use std::error::Error;
 

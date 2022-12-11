@@ -1,18 +1,18 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_env_wrapper::JavaEnvWrapper;
-use crate::jni::java_type::JavaType;
-use crate::jni::java_vm::{InternalJavaOptions, JavaVM};
-use crate::jni::jni_error::JNIError;
-use crate::jni::objects::args::JavaArg;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::{
+use crate::java::java_env::JavaEnv;
+use crate::java::java_env_wrapper::JavaEnvWrapper;
+use crate::java::java_type::JavaType;
+use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::jni_error::JNIError;
+use crate::java::objects::args::JavaArg;
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::{
     JavaBoolean, JavaByte, JavaChar, JavaDouble, JavaFloat, JavaInt, JavaLong, JavaShort, JavaValue,
 };
-use crate::jni::traits::{GetRaw, GetSignature, IsInstanceOf, IsNull, ToJavaValue};
-use crate::jni::util::util::ResultType;
-use crate::jni::vm_ptr::JavaVMPtr;
+use crate::java::traits::{GetRaw, GetSignature, IsInstanceOf, IsNull, ToJavaValue};
+use crate::java::util::util::ResultType;
+use crate::java::vm_ptr::JavaVMPtr;
 use crate::{define_object_value_of_method, sys};
 use std::error::Error;
 use std::marker::PhantomData;
@@ -28,7 +28,7 @@ pub struct LocalJavaObject<'a> {
 }
 
 impl<'a> LocalJavaObject<'a> {
-    pub(in crate::jni) fn new(object: sys::jobject, env: &'a JavaEnvWrapper<'a>) -> Self {
+    pub(in crate::java) fn new(object: sys::jobject, env: &'a JavaEnvWrapper<'a>) -> Self {
         Self {
             object,
             free: true,
@@ -59,7 +59,7 @@ impl<'a> LocalJavaObject<'a> {
         }
     }
 
-    pub(in crate::jni) fn from_internal(
+    pub(in crate::java) fn from_internal(
         object: &'a GlobalJavaObject,
         env: &'a JavaEnvWrapper<'a>,
     ) -> Self {
@@ -71,7 +71,7 @@ impl<'a> LocalJavaObject<'a> {
         }
     }
 
-    pub(in crate::jni) fn assign_env<'b>(
+    pub(in crate::java) fn assign_env<'b>(
         mut self,
         env: &'b JavaEnvWrapper<'b>,
     ) -> LocalJavaObject<'b> {
@@ -86,7 +86,7 @@ impl<'a> LocalJavaObject<'a> {
         }
     }
 
-    pub(in crate::jni) fn env(&'a self) -> &'a JavaEnvWrapper<'a> {
+    pub(in crate::java) fn env(&'a self) -> &'a JavaEnvWrapper<'a> {
         &self.env
     }
 

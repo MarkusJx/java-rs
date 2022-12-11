@@ -1,10 +1,10 @@
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::JavaValue;
-use crate::jni::traits::{GetRaw, GetSignature, IsNull, ToJavaValue};
-use crate::jni::util::util::ResultType;
+use crate::java::java_type::JavaType;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::JavaValue;
+use crate::java::traits::{GetRaw, GetSignature, IsNull, ToJavaValue};
+use crate::java::util::util::ResultType;
 use crate::sys;
 use std::error::Error;
 

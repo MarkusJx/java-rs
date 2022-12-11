@@ -8,7 +8,7 @@ pub mod string;
 pub mod value;
 
 pub mod args {
-    use crate::jni::traits::ToJavaValue;
+    use crate::java::traits::ToJavaValue;
 
     pub type JavaArg<'a> = Box<&'a dyn ToJavaValue<'a>>;
     pub type JavaArgs<'a> = Vec<JavaArg<'a>>;

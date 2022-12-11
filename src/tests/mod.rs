@@ -5,4 +5,3 @@ mod common;
 mod field_tests;
 mod method_tests;
 mod object_tests;
-mod util_tests;

@@ -1,10 +1,10 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_type::{JavaType, Type};
-use crate::jni::objects::args::JavaArgs;
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_type::{JavaType, Type};
+use crate::java::objects::args::JavaArgs;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::util::util::ResultType;
 use crate::{define_java_methods, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -16,7 +16,7 @@ pub struct JavaMethod<'a> {
 }
 
 impl<'a> JavaMethod<'a> {
-    pub(in crate::jni) fn new(
+    pub(in crate::java) fn new(
         method: sys::jmethodID,
         class: &'a JavaClass<'a>,
         return_type: JavaType,
@@ -30,7 +30,7 @@ impl<'a> JavaMethod<'a> {
         }
     }
 
-    pub(in crate::jni) unsafe fn id(&'a self) -> sys::jmethodID {
+    pub(in crate::java) unsafe fn id(&'a self) -> sys::jmethodID {
         self.method
     }
 }

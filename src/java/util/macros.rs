@@ -464,7 +464,7 @@ macro_rules! define_field {
                 }
             }
 
-            pub(in crate::jni) unsafe fn id(&self) -> sys::jfieldID {
+            pub(in crate::java) unsafe fn id(&self) -> sys::jfieldID {
                 self.0.id()
             }
         }
@@ -523,7 +523,7 @@ macro_rules! define_field {
                 }
             }
 
-            pub(in crate::jni) unsafe fn id(&self) -> sys::jfieldID {
+            pub(in crate::java) unsafe fn id(&self) -> sys::jfieldID {
                 self.0.id()
             }
         }

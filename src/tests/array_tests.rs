@@ -1,8 +1,8 @@
-use crate::jni::objects::array::{JavaObjectArray, JavaShortArray};
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::string::JavaString;
-use crate::jni::traits::IsNull;
+use crate::java::objects::array::{JavaObjectArray, JavaShortArray};
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::string::JavaString;
+use crate::java::traits::IsNull;
 use crate::tests::common::get_vm;
 
 fn check_string_array(array: &JavaObjectArray) {

@@ -1,15 +1,15 @@
-use crate::jni::java_call_result::JavaCallResult;
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_field::GlobalJavaField;
-use crate::jni::java_type::JavaType;
-use crate::jni::java_vm::JavaVM;
-use crate::jni::objects::array::JavaObjectArray;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::objects::string::JavaString;
-use crate::jni::util::conversion::{get_field_from_signature, get_field_type};
-use crate::jni::util::util::{field_is_final, method_is_public, ResultType};
+use crate::java::java_call_result::JavaCallResult;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_field::GlobalJavaField;
+use crate::java::java_type::JavaType;
+use crate::java::java_vm::JavaVM;
+use crate::java::objects::array::JavaObjectArray;
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::objects::string::JavaString;
+use crate::java::util::conversion::{get_field_from_signature, get_field_type};
+use crate::java::util::util::{field_is_final, method_is_public, ResultType};
 use std::collections::HashMap;
 
 pub struct ClassField {

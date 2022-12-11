@@ -1,7 +1,7 @@
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::class::JavaClass;
-use crate::jni::objects::value::JavaValue;
-use crate::jni::util::util::ResultType;
+use crate::java::java_type::JavaType;
+use crate::java::objects::class::JavaClass;
+use crate::java::objects::value::JavaValue;
+use crate::java::util::util::ResultType;
 use crate::sys;
 use std::ptr;
 

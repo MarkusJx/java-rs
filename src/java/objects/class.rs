@@ -1,18 +1,18 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_env_wrapper::JavaEnvWrapper;
-use crate::jni::java_field::JavaField;
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::constructor::JavaConstructor;
-use crate::jni::objects::method::{
+use crate::java::java_env::JavaEnv;
+use crate::java::java_env_wrapper::JavaEnvWrapper;
+use crate::java::java_field::JavaField;
+use crate::java::java_type::JavaType;
+use crate::java::objects::constructor::JavaConstructor;
+use crate::java::objects::method::{
     JavaBooleanMethod, JavaByteMethod, JavaCharMethod, JavaDoubleMethod, JavaFloatMethod,
     JavaIntMethod, JavaLongMethod, JavaObjectMethod, JavaShortMethod, JavaVoidMethod,
     StaticJavaBooleanMethod, StaticJavaByteMethod, StaticJavaCharMethod, StaticJavaDoubleMethod,
     StaticJavaFloatMethod, StaticJavaIntMethod, StaticJavaLongMethod, StaticJavaObjectMethod,
     StaticJavaShortMethod, StaticJavaVoidMethod,
 };
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::traits::GetRaw;
-use crate::jni::util::util::ResultType;
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::traits::GetRaw;
+use crate::java::util::util::ResultType;
 use crate::{define_get_method_method, sys};
 use std::error::Error;
 
@@ -39,7 +39,7 @@ impl<'a> JavaClass<'a> {
         self.get_object_method_with_errors(method_name, signature, true)
     }
 
-    pub(in crate::jni) fn env(&'a self) -> &'a JavaEnvWrapper<'a> {
+    pub(in crate::java) fn env(&'a self) -> &'a JavaEnvWrapper<'a> {
         self.0.env()
     }
 
@@ -165,7 +165,7 @@ impl<'a> JavaClass<'a> {
         }
     }
 
-    pub(in crate::jni) unsafe fn class(&self) -> ResultType<sys::jclass> {
+    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
         self.0
             .get_raw()
             .ok_or("Cannot get class of null pointer".into())
@@ -190,7 +190,7 @@ impl GlobalJavaClass {
         self.0
     }
 
-    pub(in crate::jni) unsafe fn class(&self) -> ResultType<sys::jclass> {
+    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
         self.0
             .get_raw()
             .ok_or("Cannot get class of null pointer".into())

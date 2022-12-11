@@ -1,5 +1,4 @@
-use crate::jni::java_vm::{InternalJavaOptions, JavaVM};
-use crate::node::java_options::JavaOptions;
+use crate::java::java_vm::{InternalJavaOptions, JavaVM};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -7,7 +6,7 @@ lazy_static! {
         &"1.8".to_string(),
         None,
         &vec![],
-        InternalJavaOptions::from(JavaOptions::default())
+        InternalJavaOptions::default(),
     )
     .unwrap();
 }

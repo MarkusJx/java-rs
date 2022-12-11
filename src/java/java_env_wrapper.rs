@@ -1,28 +1,28 @@
-use crate::jni::java_error::JavaError;
-use crate::jni::java_field::{
+use crate::java::java_error::JavaError;
+use crate::java::java_field::{
     JavaBooleanField, JavaByteField, JavaCharField, JavaDoubleField, JavaField, JavaFloatField,
     JavaIntField, JavaLongField, JavaObjectField, JavaShortField, StaticJavaBooleanField,
     StaticJavaByteField, StaticJavaCharField, StaticJavaDoubleField, StaticJavaFloatField,
     StaticJavaIntField, StaticJavaLongField, StaticJavaObjectField, StaticJavaShortField,
 };
-use crate::jni::java_type::JavaType;
-use crate::jni::java_vm::{InternalJavaOptions, JavaVM};
-use crate::jni::jni_error::JNIError;
-use crate::jni::objects::args::JavaArgs;
-use crate::jni::objects::array::{
+use crate::java::java_type::JavaType;
+use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::jni_error::JNIError;
+use crate::java::objects::args::JavaArgs;
+use crate::java::objects::array::{
     JavaArray, JavaBooleanArray, JavaByteArray, JavaCharArray, JavaDoubleArray, JavaFloatArray,
     JavaIntArray, JavaLongArray, JavaObjectArray, JavaShortArray,
 };
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::constructor::JavaConstructor;
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::method::{JavaMethod, JavaObjectMethod};
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::objects::string::JavaString;
-use crate::jni::objects::value::JavaBoolean;
-use crate::jni::traits::{GetRaw, IsNull};
-use crate::jni::util::util::{jni_error_to_string, ResultType};
-use crate::jni::vm_ptr::JavaVMPtr;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::constructor::JavaConstructor;
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::method::{JavaMethod, JavaObjectMethod};
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::objects::string::JavaString;
+use crate::java::objects::value::JavaBoolean;
+use crate::java::traits::{GetRaw, IsNull};
+use crate::java::util::util::{jni_error_to_string, ResultType};
+use crate::java::vm_ptr::JavaVMPtr;
 use crate::{define_array_methods, define_call_methods, define_field_methods, sys};
 use std::borrow::Borrow;
 use std::error::Error;
@@ -35,7 +35,7 @@ use std::thread::ThreadId;
 /// This manages the reference count for the current thread
 /// and provides convenience methods to the jvm.
 /// Rather than copying or creating this directly, attach a new
-/// thread using [`JavaVM::attach_thread`](crate::jni::java_vm::JavaVM::attach_thread).
+/// thread using [`JavaVM::attach_thread`](crate::java::java_vm::JavaVM::attach_thread).
 pub struct JavaEnvWrapper<'a> {
     pub jvm: Option<Arc<Mutex<JavaVMPtr>>>,
     pub env: *mut sys::JNIEnv,
@@ -270,7 +270,7 @@ impl<'a> JavaEnvWrapper<'a> {
     /// Get the last java error as an rust error.
     /// If no error is pending, returns an error.
     /// Clears the pending exception, converts the stack frames
-    /// and returns the error as an [`JavaError`](crate::jni::java_error::JavaError).
+    /// and returns the error as an [`JavaError`](crate::java::java_error::JavaError).
     /// If this returns `Err`, an error occurred while converting the stack frames,
     /// if this returns `Ok`, everything was converted correctly.
     ///
@@ -371,7 +371,7 @@ impl<'a> JavaEnvWrapper<'a> {
 
     /// Create a new global reference to a java object.
     ///
-    /// Used by [`GlobalJavaObject`](crate::jni::java_object::GlobalJavaObject)
+    /// Used by [`GlobalJavaObject`](crate::java::java_object::GlobalJavaObject)
     /// to create a global references from local ones.
     pub fn new_global_object(&self, object: sys::jobject) -> ResultType<GlobalJavaObject> {
         unsafe {
@@ -396,8 +396,8 @@ impl<'a> JavaEnvWrapper<'a> {
 
     /// Find a class by its jni class name.
     ///
-    /// Used by [`JavaEnv.find_class()`](crate::jni::java_env::JavaEnv::find_class)
-    /// and [`JavaClass.by_name()`](crate::jni::java_object::JavaClass::by_name).
+    /// Used by [`JavaEnv.find_class()`](crate::java::java_env::JavaEnv::find_class)
+    /// and [`JavaClass.by_name()`](crate::java::java_object::JavaClass::by_name).
     pub fn find_class(
         &'a self,
         class_name: &str,
@@ -454,8 +454,8 @@ impl<'a> JavaEnvWrapper<'a> {
 
     /// Find a class by its java class name
     ///
-    /// Used by [`JavaEnv.find_class_by_java_name()`](crate::jni::java_env::JavaEnv::find_class_by_java_name)
-    /// and [`GlobalJavaClass.by_name()`](crate::jni::java_object::GlobalJavaClass::by_name).
+    /// Used by [`JavaEnv.find_class_by_java_name()`](crate::java::java_env::JavaEnv::find_class_by_java_name)
+    /// and [`GlobalJavaClass.by_name()`](crate::java::java_object::GlobalJavaClass::by_name).
     pub fn find_global_class_by_java_name(
         &'a self,
         class_name: String,
@@ -1179,7 +1179,7 @@ impl<'a> JavaEnvWrapper<'a> {
         }
     }
 
-    pub(in crate::jni) fn get_java_vm(&self) -> ResultType<JavaVM> {
+    pub(in crate::java) fn get_java_vm(&self) -> ResultType<JavaVM> {
         Ok(JavaVM::from_existing(
             self.jvm
                 .as_ref()

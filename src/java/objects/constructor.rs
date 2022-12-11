@@ -1,8 +1,8 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::objects::args::JavaArgs;
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::object::LocalJavaObject;
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::objects::args::JavaArgs;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::object::LocalJavaObject;
+use crate::java::util::util::ResultType;
 use crate::sys;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -12,7 +12,7 @@ pub struct JavaConstructor<'a> {
 }
 
 impl<'a> JavaConstructor<'a> {
-    pub(in crate::jni) fn new(method: sys::jmethodID, class: &'a JavaClass<'a>) -> Self {
+    pub(in crate::java) fn new(method: sys::jmethodID, class: &'a JavaClass<'a>) -> Self {
         Self { method, class }
     }
 
@@ -24,11 +24,11 @@ impl<'a> JavaConstructor<'a> {
         env.get_env().new_instance(self, args)
     }
 
-    pub(in crate::jni) unsafe fn class(&self) -> ResultType<sys::jclass> {
+    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
         self.class.class()
     }
 
-    pub(in crate::jni) unsafe fn id(&self) -> sys::jmethodID {
+    pub(in crate::java) unsafe fn id(&self) -> sys::jmethodID {
         self.method
     }
 

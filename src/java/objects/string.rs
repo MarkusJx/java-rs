@@ -1,21 +1,21 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_env_wrapper::JavaEnvWrapper;
-use crate::jni::java_type::JavaType;
-use crate::jni::objects::object::{GlobalJavaObject, LocalJavaObject};
-use crate::jni::objects::value::JavaValue;
-use crate::jni::traits::{GetRaw, GetSignature, ToJavaValue};
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_env_wrapper::JavaEnvWrapper;
+use crate::java::java_type::JavaType;
+use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
+use crate::java::objects::value::JavaValue;
+use crate::java::traits::{GetRaw, GetSignature, ToJavaValue};
+use crate::java::util::util::ResultType;
 use crate::sys;
 use std::error::Error;
 
-pub struct JavaString<'a>(pub(in crate::jni::objects) LocalJavaObject<'a>);
+pub struct JavaString<'a>(pub(in crate::java::objects) LocalJavaObject<'a>);
 
 impl<'a> JavaString<'a> {
-    pub(in crate::jni) fn new(env: &'a JavaEnvWrapper<'a>, string: sys::jstring) -> Self {
+    pub(in crate::java) fn new(env: &'a JavaEnvWrapper<'a>, string: sys::jstring) -> Self {
         Self(LocalJavaObject::new(string, env))
     }
 
-    pub(in crate::jni) fn _try_from(
+    pub(in crate::java) fn _try_from(
         string: String,
         env: &'a JavaEnvWrapper<'a>,
     ) -> ResultType<Self> {

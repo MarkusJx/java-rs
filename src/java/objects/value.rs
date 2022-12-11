@@ -1,4 +1,4 @@
-use crate::jni::traits::ToJavaValue;
+use crate::java::traits::ToJavaValue;
 use crate::{define_java_value, sys};
 use std::marker::PhantomData;
 use std::ptr;
@@ -9,14 +9,14 @@ pub struct JavaValue<'a> {
 }
 
 impl<'a> JavaValue<'a> {
-    pub(in crate::jni) fn new(value: sys::jvalue) -> Self {
+    pub(in crate::java) fn new(value: sys::jvalue) -> Self {
         Self {
             value,
             _marker: PhantomData,
         }
     }
 
-    pub(in crate::jni) unsafe fn value(&self) -> sys::jvalue {
+    pub(in crate::java) unsafe fn value(&self) -> sys::jvalue {
         self.value
     }
 }

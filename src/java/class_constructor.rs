@@ -1,14 +1,14 @@
-use crate::jni::java_env::JavaEnv;
-use crate::jni::java_type::JavaType;
-use crate::jni::java_vm::JavaVM;
-use crate::jni::objects::args::JavaArgs;
-use crate::jni::objects::array::JavaObjectArray;
-use crate::jni::objects::class::{GlobalJavaClass, JavaClass};
-use crate::jni::objects::constructor::{GlobalJavaConstructor, JavaConstructor};
-use crate::jni::objects::java_object::JavaObject;
-use crate::jni::objects::object::GlobalJavaObject;
-use crate::jni::util::conversion::{get_constructor_from_signature, parameter_to_type};
-use crate::jni::util::util::ResultType;
+use crate::java::java_env::JavaEnv;
+use crate::java::java_type::JavaType;
+use crate::java::java_vm::JavaVM;
+use crate::java::objects::args::JavaArgs;
+use crate::java::objects::array::JavaObjectArray;
+use crate::java::objects::class::{GlobalJavaClass, JavaClass};
+use crate::java::objects::constructor::{GlobalJavaConstructor, JavaConstructor};
+use crate::java::objects::java_object::JavaObject;
+use crate::java::objects::object::GlobalJavaObject;
+use crate::java::util::conversion::{get_constructor_from_signature, parameter_to_type};
+use crate::java::util::util::ResultType;
 use std::fmt::Display;
 
 #[derive(Clone)]
