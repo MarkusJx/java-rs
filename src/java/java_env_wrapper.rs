@@ -20,10 +20,12 @@ use crate::java::objects::method::{JavaMethod, JavaObjectMethod};
 use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
 use crate::java::objects::string::JavaString;
 use crate::java::objects::value::JavaBoolean;
-use crate::java::traits::{GetRaw, IsNull};
+use crate::java::traits::GetRaw;
 use crate::java::util::util::{jni_error_to_string, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
-use crate::{define_array_methods, define_call_methods, define_field_methods, sys};
+use crate::{
+    assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
+};
 use std::borrow::Borrow;
 use std::error::Error;
 use std::ffi::{CStr, CString};
@@ -35,7 +37,7 @@ use std::thread::ThreadId;
 /// This manages the reference count for the current thread
 /// and provides convenience methods to the jvm.
 /// Rather than copying or creating this directly, attach a new
-/// thread using [`JavaVM::attach_thread`](crate::java::java_vm::JavaVM::attach_thread).
+/// thread using [`JavaVM::attach_thread`](JavaVM::attach_thread).
 pub struct JavaEnvWrapper<'a> {
     pub jvm: Option<Arc<Mutex<JavaVMPtr>>>,
     pub env: *mut sys::JNIEnv,
@@ -52,6 +54,7 @@ impl<'a> JavaEnvWrapper<'a> {
         options: InternalJavaOptions,
         env: *mut sys::JNIEnv,
     ) -> Self {
+        assert_non_null!(env, "JavaEnvWrapper::new: env is null");
         jvm.lock().unwrap().increase_ref_count();
         Self {
             jvm: Some(jvm),
@@ -64,6 +67,7 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub unsafe fn from_raw(env: *mut sys::JNIEnv, options: InternalJavaOptions) -> Self {
+        assert_non_null!(env, "JavaEnvWrapper::from_raw: env is null");
         let mut res = Self {
             jvm: None,
             env,
@@ -81,7 +85,7 @@ impl<'a> JavaEnvWrapper<'a> {
         let mut vm: *mut sys::JavaVM = ptr::null_mut();
         let res =
             unsafe { self.methods.GetJavaVM.unwrap()(self.env, &mut vm as *mut *mut sys::JavaVM) };
-        if res != sys::JNI_OK as _ || vm == ptr::null_mut() {
+        if res != sys::JNI_OK as _ || vm.is_null() {
             Err(format!("Failed to get JavaVM: {}", jni_error_to_string(res)).into())
         } else {
             let options = self.options.ok_or("The options were unset".to_string())?;
@@ -90,16 +94,9 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub fn get_object_class(&'a self, object: JavaObject) -> ResultType<JavaClass<'a>> {
-        let class = unsafe {
-            self.methods.GetObjectClass.unwrap()(
-                self.env,
-                object
-                    .get_raw()
-                    .ok_or("Cannot get class of null object".to_string())?,
-            )
-        };
+        let class = unsafe { self.methods.GetObjectClass.unwrap()(self.env, object.get_raw()) };
 
-        if self.is_err() {
+        if self.is_err() || class.is_null() {
             return Err(self.get_last_error(file!(), line!(), true, "GetObjectClass failed")?);
         }
 
@@ -110,11 +107,15 @@ impl<'a> JavaEnvWrapper<'a> {
         let object_class = self.get_object_class(object.clone())?;
 
         let get_class = object_class.get_object_method("getClass", "()Ljava/lang/Class;")?;
-        let class = get_class.call(object, vec![])?;
+        let class = get_class
+            .call(object, vec![])?
+            .ok_or("Object.getClass() returned null".to_string())?;
         let java_class = self.get_java_lang_class()?;
 
         let get_name = java_class.get_object_method("getName", "()Ljava/lang/String;")?;
-        let java_name = get_name.call(JavaObject::from(class), JavaArgs::new())?;
+        let java_name = get_name
+            .call(JavaObject::from(class), JavaArgs::new())?
+            .ok_or("Class.getName() returned null".to_string())?;
         let name = JavaString::from(java_name).to_string()?;
 
         Ok(JavaType::new(name, true))
@@ -124,13 +125,7 @@ impl<'a> JavaEnvWrapper<'a> {
         let class = self.find_class(classname, true)?;
 
         let result = unsafe {
-            self.methods.IsInstanceOf.unwrap()(
-                self.env,
-                object.get_raw().ok_or(
-                    "Cannot check if object is instance of class with null object".to_string(),
-                )?,
-                class.class()?,
-            )
+            self.methods.IsInstanceOf.unwrap()(self.env, object.get_raw(), class.class())
         };
 
         if self.is_err() {
@@ -141,15 +136,8 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub fn instance_of(&self, this: JavaObject, other: GlobalJavaClass) -> ResultType<bool> {
-        let result = unsafe {
-            self.methods.IsInstanceOf.unwrap()(
-                self.env,
-                this.get_raw().ok_or(
-                    "Cannot check if this is instance of class with null object".to_string(),
-                )?,
-                other.class()?,
-            )
-        };
+        let result =
+            unsafe { self.methods.IsInstanceOf.unwrap()(self.env, this.get_raw(), other.class()) };
 
         if self.is_err() {
             Err(self.get_last_error(file!(), line!(), true, "IsInstanceOf failed")?)
@@ -165,8 +153,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 self.env,
                 self.find_class("java/lang/Exception", true)
                     .unwrap()
-                    .class()
-                    .unwrap(),
+                    .class(),
                 message.as_ptr(),
             );
         }
@@ -174,7 +161,7 @@ impl<'a> JavaEnvWrapper<'a> {
 
     pub fn throw(&self, object: JavaObject) {
         unsafe {
-            self.methods.Throw.unwrap()(self.env, object.get_raw().unwrap());
+            self.methods.Throw.unwrap()(self.env, object.get_raw());
         }
     }
 
@@ -223,35 +210,40 @@ impl<'a> JavaEnvWrapper<'a> {
         causes: &mut Vec<String>,
         stack_frames: &mut Vec<String>,
     ) -> ResultType<()> {
-        if frames.is_null() {
-            return Ok(());
-        }
-
-        let throwable_string =
-            throwable_to_string.call_with_errors(JavaObject::from(throwable), vec![], false)?;
+        let throwable_string = throwable_to_string
+            .call_with_errors(JavaObject::from(throwable), vec![], false)?
+            .ok_or("Throwable.toString() returned null".to_string())?;
         causes.push(throwable_string.to_java_string().try_into()?);
 
         for i in 0..num_frames {
-            let frame = frames.get_with_errors(i, false)?;
-            let frame_string = stack_trace_element_to_string.call_with_errors(
-                JavaObject::from(&frame),
-                vec![],
-                false,
-            )?;
+            let frame = frames
+                .get_with_errors(i, false)?
+                .ok_or("A stack frame was null".to_string())?;
+            let frame_string = stack_trace_element_to_string
+                .call_with_errors(JavaObject::from(&frame), vec![], false)?
+                .ok_or("StackTraceElement.toString() returned null".to_string())?;
             stack_frames.push(frame_string.to_java_string().try_into()?);
         }
 
         let throwable =
             throwable_get_cause.call_with_errors(JavaObject::from(throwable), vec![], false)?;
-        if throwable.is_null() {
+        let throwable = if let Some(throwable) = throwable {
+            throwable
+        } else {
             return Ok(());
-        }
+        };
 
-        let mut frames = JavaObjectArray::from(throwable_get_stack_trace.call_with_errors(
+        let frames_obj = throwable_get_stack_trace.call_with_errors(
             JavaObject::from(&throwable),
             vec![],
             false,
-        )?);
+        )?;
+
+        let mut frames = if let Some(f) = frames_obj {
+            JavaObjectArray::from(f)
+        } else {
+            return Ok(());
+        };
         let num_frames = frames.len()?;
 
         self.convert_frames(
@@ -270,7 +262,7 @@ impl<'a> JavaEnvWrapper<'a> {
     /// Get the last java error as an rust error.
     /// If no error is pending, returns an error.
     /// Clears the pending exception, converts the stack frames
-    /// and returns the error as an [`JavaError`](crate::java::java_error::JavaError).
+    /// and returns the error as an [`JavaError`](JavaError).
     /// If this returns `Err`, an error occurred while converting the stack frames,
     /// if this returns `Ok`, everything was converted correctly.
     ///
@@ -333,11 +325,11 @@ impl<'a> JavaEnvWrapper<'a> {
         let stack_trace_element_to_string = stack_trace_element_class
             .get_object_method_with_errors("toString", "()Ljava/lang/String;", false)?;
 
-        let mut frames = JavaObjectArray::from(throwable_get_stack_trace.call_with_errors(
-            JavaObject::from(&throwable),
-            vec![],
-            false,
-        )?);
+        let mut frames = JavaObjectArray::from(
+            throwable_get_stack_trace
+                .call_with_errors(JavaObject::from(&throwable), vec![], false)?
+                .ok_or("Throwable.getStackTrace() returned null".to_string())?,
+        );
         let num_frames = frames.len()?;
 
         let mut causes: Vec<String> = vec![];
@@ -364,6 +356,7 @@ impl<'a> JavaEnvWrapper<'a> {
     /// for jni calls to the jvm. Do not call this if the object
     /// has been converted to a global reference.
     pub fn delete_local_ref(&self, object: sys::jobject) -> () {
+        assert_non_null!(object);
         unsafe {
             self.methods.DeleteLocalRef.unwrap()(self.env, object);
         }
@@ -374,9 +367,10 @@ impl<'a> JavaEnvWrapper<'a> {
     /// Used by [`GlobalJavaObject`](crate::java::java_object::GlobalJavaObject)
     /// to create a global references from local ones.
     pub fn new_global_object(&self, object: sys::jobject) -> ResultType<GlobalJavaObject> {
+        assert_non_null!(object);
         unsafe {
             let obj = self.methods.NewGlobalRef.unwrap()(self.env, object);
-            if self.is_err() {
+            if self.is_err() || obj.is_null() {
                 self.clear_err();
                 return Err(JNIError::new("Failed to create global reference".to_string()).into());
             }
@@ -406,7 +400,7 @@ impl<'a> JavaEnvWrapper<'a> {
         let c_class_name = CString::new(class_name)?;
         unsafe {
             let class = self.methods.FindClass.unwrap()(self.env, c_class_name.as_ptr());
-            if self.is_err() {
+            if self.is_err() || class.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -443,11 +437,13 @@ impl<'a> JavaEnvWrapper<'a> {
             .clone()
             .unwrap();
         let class_loader = LocalJavaObject::from_internal(loader.borrow(), self);
-        let res = for_name.call(vec![
-            Box::new(&java_class_name),
-            Box::new(&arg),
-            Box::new(&class_loader),
-        ])?;
+        let res = for_name
+            .call(vec![
+                Box::new(&java_class_name),
+                Box::new(&arg),
+                Box::new(&class_loader),
+            ])?
+            .ok_or("Class.forName() returned null".to_string())?;
 
         Ok(JavaClass::from(res.assign_env(self)))
     }
@@ -478,11 +474,15 @@ impl<'a> JavaEnvWrapper<'a> {
             .clone()
             .unwrap();
         let class_loader = LocalJavaObject::from_internal(loader.borrow(), self);
-        let cls = GlobalJavaClass::try_from(for_name.call(vec![
-            Box::new(&java_class_name),
-            Box::new(&arg),
-            Box::new(&class_loader),
-        ])?)?;
+        let cls = GlobalJavaClass::try_from(
+            for_name
+                .call(vec![
+                    Box::new(&java_class_name),
+                    Box::new(&arg),
+                    Box::new(&class_loader),
+                ])?
+                .ok_or("Class.forName() returned null".to_string())?,
+        )?;
         Ok(cls)
     }
 
@@ -491,7 +491,9 @@ impl<'a> JavaEnvWrapper<'a> {
         let get_system_class_loader =
             class.get_static_object_method("getSystemClassLoader", "()Ljava/lang/ClassLoader;")?;
 
-        let loader = get_system_class_loader.call(vec![])?;
+        let loader = get_system_class_loader
+            .call(vec![])?
+            .ok_or("ClassLoader.getSystemClassLoader() returned null".to_string())?;
         GlobalJavaObject::try_from(loader)
     }
 
@@ -516,12 +518,12 @@ impl<'a> JavaEnvWrapper<'a> {
         unsafe {
             let method = self.methods.GetMethodID.unwrap()(
                 self.env,
-                class.class()?,
+                class.class(),
                 method_name_str.as_ptr(),
                 signature_str.as_ptr(),
             );
 
-            if self.is_err() {
+            if self.is_err() || method.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -550,12 +552,12 @@ impl<'a> JavaEnvWrapper<'a> {
         unsafe {
             let method = self.methods.GetStaticMethodID.unwrap()(
                 self.env,
-                class.class()?,
+                class.class(),
                 method_name_str.as_ptr(),
                 signature_str.as_ptr(),
             );
 
-            if self.is_err() {
+            if self.is_err() || method.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -582,7 +584,7 @@ impl<'a> JavaEnvWrapper<'a> {
         object: JavaObject<'_>,
         method: &JavaMethod<'_>,
         args: JavaArgs<'_>,
-    ) -> ResultType<LocalJavaObject<'a>> {
+    ) -> ResultType<Option<LocalJavaObject<'a>>> {
         self.call_object_method_with_errors(object, method, args, true)
     }
 
@@ -592,14 +594,12 @@ impl<'a> JavaEnvWrapper<'a> {
         method: &JavaMethod<'_>,
         args: JavaArgs<'_>,
         resolve_errors: bool,
-    ) -> ResultType<LocalJavaObject<'a>> {
+    ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
             let args = self.convert_args(args);
             let obj = self.methods.CallObjectMethodA.unwrap()(
                 self.env,
-                object
-                    .get_raw()
-                    .ok_or("Cannot call object method with null object".to_string())?,
+                object.get_raw(),
                 method.id(),
                 args.as_ptr(),
             );
@@ -612,7 +612,11 @@ impl<'a> JavaEnvWrapper<'a> {
                 )?);
             }
 
-            Ok(LocalJavaObject::new(obj, self))
+            Ok(if obj.is_null() {
+                None
+            } else {
+                Some(LocalJavaObject::new(obj, self))
+            })
         }
     }
 
@@ -621,12 +625,12 @@ impl<'a> JavaEnvWrapper<'a> {
         class: &JavaClass<'_>,
         method: &JavaMethod<'_>,
         args: JavaArgs<'_>,
-    ) -> ResultType<LocalJavaObject<'a>> {
+    ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
             let args = self.convert_args(args);
             let obj = self.methods.CallStaticObjectMethodA.unwrap()(
                 self.env,
-                class.class()?,
+                class.class(),
                 method.id(),
                 args.as_ptr(),
             );
@@ -639,7 +643,11 @@ impl<'a> JavaEnvWrapper<'a> {
                 )?);
             }
 
-            Ok(LocalJavaObject::new(obj, self))
+            Ok(if obj.is_null() {
+                None
+            } else {
+                Some(LocalJavaObject::new(obj, self))
+            })
         }
     }
 
@@ -746,20 +754,20 @@ impl<'a> JavaEnvWrapper<'a> {
             let field = if is_static {
                 self.methods.GetStaticFieldID.unwrap()(
                     self.env,
-                    class.class()?,
+                    class.class(),
                     field_name.as_ptr(),
                     field_signature.as_ptr(),
                 )
             } else {
                 self.methods.GetFieldID.unwrap()(
                     self.env,
-                    class.class()?,
+                    class.class(),
                     field_name.as_ptr(),
                     field_signature.as_ptr(),
                 )
             };
 
-            if self.is_err() {
+            if self.is_err() || field.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -776,19 +784,15 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         field: &JavaObjectField<'_>,
         object: &JavaObject<'_>,
-    ) -> ResultType<JavaObject<'a>> {
+    ) -> ResultType<Option<JavaObject<'a>>> {
         unsafe {
-            let res = self.methods.GetObjectField.unwrap()(
-                self.env,
-                object
-                    .get_raw()
-                    .ok_or("Cannot get field of null object".to_string())?,
-                field.id(),
-            );
+            let res = self.methods.GetObjectField.unwrap()(self.env, object.get_raw(), field.id());
             if self.is_err() {
                 Err(self.get_last_error(file!(), line!(), true, "GetObjectField failed")?)
+            } else if res.is_null() {
+                Ok(None)
             } else {
-                Ok(JavaObject::from(LocalJavaObject::new(res, self)))
+                Ok(Some(JavaObject::from(LocalJavaObject::new(res, self))))
             }
         }
     }
@@ -797,16 +801,17 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         field: &JavaObjectField<'_>,
         object: &JavaObject<'_>,
-        value: JavaObject<'_>,
+        value: Option<JavaObject<'_>>,
     ) -> ResultType<()> {
         unsafe {
             self.methods.SetObjectField.unwrap()(
                 self.env,
-                object
-                    .get_raw()
-                    .ok_or("Cannot set field of null object".to_string())?,
+                object.get_raw(),
                 field.id(),
-                value.get_raw_nullable(),
+                value
+                    .as_ref()
+                    .map(|v| v.get_raw())
+                    .unwrap_or(ptr::null_mut()),
             );
             if self.is_err() {
                 Err(self.get_last_error(file!(), line!(), true, "SetObjectField failed")?)
@@ -820,14 +825,16 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         field: &StaticJavaObjectField,
         class: &JavaClass<'_>,
-    ) -> ResultType<JavaObject<'a>> {
+    ) -> ResultType<Option<JavaObject<'a>>> {
         unsafe {
             let res =
-                self.methods.GetStaticObjectField.unwrap()(self.env, class.class()?, field.id());
+                self.methods.GetStaticObjectField.unwrap()(self.env, class.class(), field.id());
             if self.is_err() {
                 Err(self.get_last_error(file!(), line!(), true, "GetStaticObjectField failed")?)
+            } else if res.is_null() {
+                Ok(None)
             } else {
-                Ok(JavaObject::from(LocalJavaObject::new(res, self)))
+                Ok(Some(JavaObject::from(LocalJavaObject::new(res, self))))
             }
         }
     }
@@ -836,14 +843,17 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         field: &StaticJavaObjectField,
         class: &JavaClass<'_>,
-        value: JavaObject<'_>,
+        value: Option<JavaObject<'_>>,
     ) -> ResultType<()> {
         unsafe {
             self.methods.SetStaticObjectField.unwrap()(
                 self.env,
-                class.class()?,
+                class.class(),
                 field.id(),
-                value.get_raw_nullable(),
+                value
+                    .as_ref()
+                    .map(|v| v.get_raw())
+                    .unwrap_or(ptr::null_mut()),
             );
             if self.is_err() {
                 Err(self.get_last_error(
@@ -968,15 +978,9 @@ impl<'a> JavaEnvWrapper<'a> {
         array: &'a JavaArray<'a>,
         index: i32,
         resolve_errors: bool,
-    ) -> ResultType<LocalJavaObject<'a>> {
+    ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
-            let obj = self.methods.GetObjectArrayElement.unwrap()(
-                self.env,
-                array
-                    .get_raw()
-                    .ok_or("Cannot get array element of null array".to_string())?,
-                index,
-            );
+            let obj = self.methods.GetObjectArrayElement.unwrap()(self.env, array.get_raw(), index);
             if self.is_err() {
                 return Err(self.get_last_error(
                     file!(),
@@ -986,7 +990,11 @@ impl<'a> JavaEnvWrapper<'a> {
                 )?);
             }
 
-            Ok(LocalJavaObject::new(obj, self))
+            if obj.is_null() {
+                Ok(None)
+            } else {
+                Ok(Some(LocalJavaObject::new(obj, self)))
+            }
         }
     }
 
@@ -994,16 +1002,17 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         array: &'a JavaArray<'a>,
         index: i32,
-        element: JavaObject<'a>,
+        element: Option<JavaObject<'a>>,
     ) -> ResultType<()> {
         unsafe {
             self.methods.SetObjectArrayElement.unwrap()(
                 self.env,
-                array
-                    .get_raw()
-                    .ok_or("Cannot set element of null array".to_string())?,
+                array.get_raw(),
                 index,
-                element.get_raw_nullable(),
+                element
+                    .as_ref()
+                    .map(|e| e.get_raw())
+                    .unwrap_or(ptr::null_mut()),
             );
             if self.is_err() {
                 return Err(self.get_last_error(
@@ -1019,6 +1028,7 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub fn get_array_length(&self, array: sys::jobject) -> ResultType<i32> {
+        assert_non_null!(array);
         unsafe {
             let length = self.methods.GetArrayLength.unwrap()(self.env, array);
             if self.is_err() {
@@ -1040,13 +1050,9 @@ impl<'a> JavaEnvWrapper<'a> {
         len: i32,
     ) -> ResultType<JavaObjectArray> {
         unsafe {
-            let arr = self.methods.NewObjectArray.unwrap()(
-                self.env,
-                len,
-                class.class()?,
-                ptr::null_mut(),
-            );
-            if self.is_err() {
+            let arr =
+                self.methods.NewObjectArray.unwrap()(self.env, len, class.class(), ptr::null_mut());
+            if self.is_err() || arr.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -1149,6 +1155,7 @@ impl<'a> JavaEnvWrapper<'a> {
     );
 
     pub unsafe fn get_string_utf_chars(&self, string: sys::jstring) -> ResultType<String> {
+        assert_non_null!(string);
         let chars = self.methods.GetStringUTFChars.unwrap()(self.env, string, ptr::null_mut());
         if self.is_err() || chars == ptr::null_mut() {
             self.clear_err();
@@ -1194,6 +1201,8 @@ impl<'a> JavaEnvWrapper<'a> {
         sub: sys::jclass,
         sup: sys::jclass,
     ) -> ResultType<bool> {
+        assert_non_null!(sub);
+        assert_non_null!(sup);
         let result = self.methods.IsAssignableFrom.unwrap()(self.env, sub, sup);
         if self.is_err() {
             Err(self.get_last_error(file!(), line!(), true, "IsAssignableFrom failed")?)
@@ -1211,7 +1220,7 @@ impl<'a> JavaEnvWrapper<'a> {
             let args = self.convert_args(args);
             self.methods.NewObjectA.unwrap()(
                 self.env,
-                constructor.class()?,
+                constructor.class(),
                 constructor.id(),
                 args.as_ptr(),
             )
@@ -1232,7 +1241,7 @@ impl<'a> JavaEnvWrapper<'a> {
         let id = unsafe {
             self.methods.GetMethodID.unwrap()(
                 self.env,
-                class.class()?,
+                class.class(),
                 CString::new("<init>")?.as_ptr(),
                 CString::new(signature)?.as_ptr(),
             )
@@ -1263,10 +1272,14 @@ impl<'a> JavaEnvWrapper<'a> {
             let java_path = self.string_to_java_string(paths.get(i).unwrap().clone())?;
             let file = self.new_instance(&file_constructor, vec![Box::new(&java_path)])?;
 
-            let uri = to_uri.call(JavaObject::from(file), vec![])?;
-            let url = to_url.call(JavaObject::from(uri), vec![])?;
+            let uri = to_uri
+                .call(JavaObject::from(file), vec![])?
+                .ok_or("File.toURI returned null".to_string())?;
+            let url = to_url
+                .call(JavaObject::from(uri), vec![])?
+                .ok_or("URI.toURL returned null".to_string())?;
 
-            urls.set(i as i32, JavaObject::from(url))?;
+            urls.set(i as i32, Some(JavaObject::from(url)))?;
         }
 
         let old_class_loader = self

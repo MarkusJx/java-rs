@@ -33,6 +33,26 @@ pub enum Type {
     String = 20,
 }
 
+impl Type {
+    pub fn is_object(&self) -> bool {
+        match self {
+            Type::Object
+            | Type::Array
+            | Type::LangBoolean
+            | Type::LangInteger
+            | Type::LangByte
+            | Type::LangCharacter
+            | Type::LangShort
+            | Type::LangLong
+            | Type::LangFloat
+            | Type::LangDouble
+            | Type::LangObject
+            | Type::String => true,
+            _ => false,
+        }
+    }
+}
+
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let status_string = format!("{:?}", self);
@@ -61,13 +81,13 @@ impl JavaType {
     ///
     /// # Examples
     /// ```rust
-    /// use jni::java_type::JavaType;
+    /// use java_rs::java_type::JavaType;
     ///
     /// // Get the type from a java signature
-    /// let java_type = JavaType::new("java.lang.String", true);
+    /// let java_type = JavaType::new("java.lang.String".into(), true);
     ///
     /// // Get the type from a jni signature
-    /// let jni_type = JavaType::new("Ljava/lang/String;", true);
+    /// let jni_type = JavaType::new("Ljava/lang/String;".into(), true);
     ///
     /// // Both should be the same
     /// assert_eq!(java_type, jni_type);
@@ -214,12 +234,12 @@ impl JavaType {
     ///
     /// # Examples
     /// ```rust
-    /// use jni::java_type::JavaType;
+    /// use java_rs::java_type::JavaType;
     ///
     /// // Get the return type of a method signature
     /// let java_type = JavaType::get_return_type("()I");
     ///
-    /// let expected = JavaType::new("int", false);
+    /// let expected = JavaType::new("int".into(), false);
     /// assert_eq!(java_type, expected);
     /// ```
     pub fn from_method_return_type(method_signature: &str) -> ResultType<Self> {
@@ -244,10 +264,10 @@ impl JavaType {
     ///
     /// # Examples
     /// ```rust
-    /// use jni::java_type::JavaType;
+    /// use java_rs::java_type::{JavaType, Type};
     ///
-    /// let type = JavaType::new("java.lang.String[]", false);
-    /// let inner = type.inner();
+    /// let t = JavaType::new("java.lang.String[]".into(), false);
+    /// let inner = t.inner();
     ///
     /// assert_eq!(inner.is_some(), type.is_array());
     /// assert_eq!(inner.unwrap().type_enum(), Type::String);
@@ -288,6 +308,8 @@ impl JavaType {
     ///
     /// # Examples
     /// ```rust
+    /// use java_rs::java_type::JavaType;
+    ///
     /// let mut type1 = JavaType::new("java.lang.String".to_string(), true);
     /// let mut type2 = JavaType::new("java.lang.String".to_string(), true);
     ///

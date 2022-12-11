@@ -7,6 +7,7 @@ use crate::java::objects::value::{
 };
 use crate::java::traits::{GetSignature, ToJavaValue};
 use crate::java::util::util::ResultType;
+use crate::java_type::Type;
 use std::error::Error;
 
 #[derive(Clone)]
@@ -42,6 +43,22 @@ impl<'a> ToJavaValue<'a> for JavaCallResult {
             JavaCallResult::Float(f) => JavaFloat::new(*f).into(),
             JavaCallResult::Double(d) => JavaDouble::new(*d).into(),
             JavaCallResult::Object { object, .. } => object.to_java_value(),
+        }
+    }
+
+    fn get_type(&self) -> Type {
+        match self {
+            JavaCallResult::Void => Type::Void,
+            JavaCallResult::Null => Type::Object,
+            JavaCallResult::Boolean(_) => Type::Boolean,
+            JavaCallResult::Byte(_) => Type::Byte,
+            JavaCallResult::Character(_) => Type::Character,
+            JavaCallResult::Short(_) => Type::Short,
+            JavaCallResult::Integer(_) => Type::Integer,
+            JavaCallResult::Long(_) => Type::Long,
+            JavaCallResult::Float(_) => Type::Float,
+            JavaCallResult::Double(_) => Type::Double,
+            JavaCallResult::Object { .. } => Type::Object,
         }
     }
 }

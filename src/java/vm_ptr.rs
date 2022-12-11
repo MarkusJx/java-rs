@@ -1,6 +1,6 @@
 use crate::java::java_vm::InternalJavaOptions;
 use crate::java::objects::object::GlobalJavaObject;
-use crate::sys;
+use crate::{assert_non_null, sys};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::thread::ThreadId;
@@ -25,6 +25,7 @@ pub struct JavaVMPtr {
 
 impl JavaVMPtr {
     pub(in crate::java) fn new(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
+        assert_non_null!(vm);
         let mut res = Self {
             vm: AtomicPtr::new(vm),
             options,
@@ -38,6 +39,7 @@ impl JavaVMPtr {
     }
 
     pub(in crate::java) fn from_raw(vm: *mut sys::JavaVM, options: InternalJavaOptions) -> Self {
+        assert_non_null!(vm);
         Self {
             vm: AtomicPtr::new(vm),
             options,

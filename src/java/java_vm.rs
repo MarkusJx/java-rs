@@ -2,8 +2,7 @@ use crate::java::java_env::JavaEnv;
 use crate::java::jni_error::JNIError;
 use crate::java::util::util::{jni_error_to_string, parse_jni_version, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
-use crate::library;
-use crate::library::library::{library_loaded, load_library};
+use crate::library::library::{get_jni_create_java_vm, library_loaded, load_library};
 use crate::sys;
 use std::error::Error;
 use std::ffi::{c_void, CString};
@@ -52,7 +51,7 @@ impl JavaVM {
             load_library(lib_path.as_str())?;
         }
 
-        let create_fn = library::library::get_jni_create_java_vm()?;
+        let create_fn = get_jni_create_java_vm()?;
         let mut ptr: *mut sys::JavaVM = std::ptr::null_mut();
         let mut env: *mut sys::JNIEnv = std::ptr::null_mut();
 
@@ -76,17 +75,19 @@ impl JavaVM {
         let create_res: i32 = unsafe {
             create_fn(
                 &mut ptr,
-                &mut env as *mut *mut sys::JNIEnv as *mut *mut std::os::raw::c_void,
-                &vm_args as *const _ as _,
+                &mut env as *mut *mut sys::JNIEnv as *mut *mut _,
+                &vm_args as *const _ as *mut _,
             )
         };
 
-        if create_res != 0 || ptr.is_null() {
+        if create_res != 0 {
             return Err(JNIError::new(format!(
                 "Failed to create JavaVM: {}",
                 jni_error_to_string(create_res)
             ))
             .into());
+        } else if ptr.is_null() || env.is_null() {
+            return Err(JNIError::new("Failed to create JavaVM".to_string()).into());
         }
 
         let ptr = Arc::new(Mutex::new(JavaVMPtr::new(ptr, options)));
@@ -153,12 +154,18 @@ impl JavaVM {
                     jni_error_to_string(create_result)
                 ))
                 .into());
+            } else if env.is_null() {
+                return Err(JNIError::new("Failed to attach thread".to_string()).into());
             }
 
             let j_env = JavaEnv::new(ptr.clone(), options.clone(), env);
             j_env.thread_set_context_classloader()?;
             Ok(j_env)
         } else if create_result == sys::JNI_OK as i32 {
+            if env.is_null() {
+                return Err(JNIError::new("Failed to attach thread".to_string()).into());
+            }
+
             drop(jvm_ptr);
             Ok(JavaEnv::new(ptr.clone(), options.clone(), env))
         } else {

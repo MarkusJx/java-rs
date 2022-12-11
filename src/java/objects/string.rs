@@ -5,6 +5,7 @@ use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
 use crate::java::objects::value::JavaValue;
 use crate::java::traits::{GetRaw, GetSignature, ToJavaValue};
 use crate::java::util::util::ResultType;
+use crate::java_type::Type;
 use crate::sys;
 use std::error::Error;
 
@@ -52,8 +53,12 @@ impl<'a> GetSignature for JavaString<'a> {
 impl<'a> ToJavaValue<'a> for JavaString<'a> {
     fn to_java_value(&'a self) -> JavaValue<'a> {
         JavaValue::new(sys::jvalue {
-            l: unsafe { self.0.get_raw_nullable() },
+            l: unsafe { self.0.get_raw() },
         })
+    }
+
+    fn get_type(&self) -> Type {
+        Type::String
     }
 }
 
@@ -73,12 +78,6 @@ impl TryInto<String> for JavaString<'_> {
     type Error = Box<dyn Error>;
 
     fn try_into(self) -> Result<String, Self::Error> {
-        unsafe {
-            self.0.env().get_string_utf_chars(
-                self.0
-                    .get_raw()
-                    .ok_or("Cannot convert null string to std::string".to_string())?,
-            )
-        }
+        unsafe { self.0.env().get_string_utf_chars(self.0.get_raw()) }
     }
 }

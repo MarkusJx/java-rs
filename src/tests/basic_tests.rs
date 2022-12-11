@@ -26,7 +26,7 @@ fn string_value_of() {
         .get_static_object_method("valueOf", "(Z)Ljava/lang/String;")
         .unwrap();
     let bool = JavaBoolean::new(true);
-    let string = value_of.call(vec![Box::new(&bool)]).unwrap();
+    let string = value_of.call(vec![Box::new(&bool)]).unwrap().unwrap();
 
     let str = JavaString::from(string);
     assert_eq!(str.to_string().unwrap(), "true");

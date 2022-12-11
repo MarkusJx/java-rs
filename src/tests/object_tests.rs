@@ -15,7 +15,7 @@ fn local_class_by_name() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap();
+    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
     let string = JavaString::from(str);
 
     assert_eq!(string.to_string().unwrap(), "1234");
@@ -34,7 +34,7 @@ fn local_to_global_class() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap();
+    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
     let string = JavaString::from(str);
 
     assert_eq!(string.to_string().unwrap(), "1234");
@@ -51,7 +51,7 @@ fn global_class_by_name() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap();
+    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
     let string = JavaString::from(str);
 
     assert_eq!(string.to_string().unwrap(), "1234");

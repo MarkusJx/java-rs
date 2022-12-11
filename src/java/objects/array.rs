@@ -4,8 +4,9 @@ use crate::java::objects::class::JavaClass;
 use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::value::JavaValue;
-use crate::java::traits::{GetRaw, IsNull, ToJavaValue};
+use crate::java::traits::{GetRaw, ToJavaValue};
 use crate::java::util::util::ResultType;
+use crate::java_type::Type;
 use crate::{define_array, sys};
 
 pub struct JavaArray<'a> {
@@ -14,26 +15,15 @@ pub struct JavaArray<'a> {
 
 impl JavaArray<'_> {
     pub fn len(&self) -> ResultType<i32> {
-        if self.is_null() {
-            return Err(JNIError::from("Cannot get length of null array").into());
-        }
-
-        self.object.env().get_array_length(
-            unsafe { self.object.get_raw() }
-                .ok_or("Cannot get length of null array".to_string())?,
-        )
+        self.object
+            .env()
+            .get_array_length(unsafe { self.object.get_raw() })
     }
 }
 
 impl GetRaw for JavaArray<'_> {
-    unsafe fn get_raw_nullable(&self) -> sys::jobject {
-        self.object.get_raw_nullable()
-    }
-}
-
-impl IsNull for JavaArray<'_> {
-    fn is_null(&self) -> bool {
-        self.object.is_null()
+    unsafe fn get_raw(&self) -> sys::jobject {
+        self.object.get_raw()
     }
 }
 
@@ -50,7 +40,10 @@ impl<'a> JavaObjectArray<'a> {
         class.env().create_object_array(class, length as i32)
     }
 
-    pub fn from_vec(objects: Vec<JavaObject<'a>>, class: &'a JavaClass<'a>) -> ResultType<Self> {
+    pub fn from_vec(
+        objects: Vec<Option<JavaObject<'a>>>,
+        class: &'a JavaClass<'a>,
+    ) -> ResultType<Self> {
         let mut array = JavaObjectArray::new(class, objects.len())?;
         for (i, object) in objects.into_iter().enumerate() {
             array.set(i as i32, object)?;
@@ -69,15 +62,11 @@ impl<'a> JavaObjectArray<'a> {
         self.0.len()
     }
 
-    pub fn is_null(&self) -> bool {
-        self.0.is_null()
-    }
-
-    pub fn get(&'a self, i: i32) -> ResultType<LocalJavaObject<'a>> {
+    pub fn get(&'a self, i: i32) -> ResultType<Option<LocalJavaObject<'a>>> {
         self.get_with_errors(i, true)
     }
 
-    pub fn set(&mut self, i: i32, value: JavaObject<'a>) -> ResultType<()> {
+    pub fn set(&mut self, i: i32, value: Option<JavaObject<'a>>) -> ResultType<()> {
         self.0
             .object
             .env()
@@ -88,7 +77,7 @@ impl<'a> JavaObjectArray<'a> {
         &'a self,
         i: i32,
         resolve_errors: bool,
-    ) -> ResultType<LocalJavaObject<'a>> {
+    ) -> ResultType<Option<LocalJavaObject<'a>>> {
         if i >= self.len()? {
             return Err(JNIError::from("Index out of bounds").into());
         }
@@ -107,8 +96,12 @@ impl<'a> JavaObjectArray<'a> {
 impl<'a> ToJavaValue<'a> for JavaObjectArray<'a> {
     fn to_java_value(&'a self) -> JavaValue<'a> {
         JavaValue::new(sys::jvalue {
-            l: unsafe { self.0.object.get_raw_nullable() },
+            l: unsafe { self.0.object.get_raw() },
         })
+    }
+
+    fn get_type(&self) -> Type {
+        Type::Array
     }
 }
 

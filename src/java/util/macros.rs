@@ -11,9 +11,7 @@ macro_rules! define_call_methods {
                 let args = self.convert_args(args);
                 let $result_name = self.methods.$method.unwrap()(
                     self.env,
-                    object
-                        .get_raw()
-                        .ok_or("Cannot call method with null object".to_string())?,
+                    object.get_raw(),
                     method.id(),
                     args.as_ptr(),
                 );
@@ -40,7 +38,7 @@ macro_rules! define_call_methods {
                 let args = self.convert_args(args);
                 let $result_name = self.methods.$static_method.unwrap()(
                     self.env,
-                    class.class()?,
+                    class.class(),
                     method.id(),
                     args.as_ptr(),
                 );
@@ -64,7 +62,7 @@ macro_rules! define_array_methods {
     ($create_name: ident, $get_name: ident, $jni_type: ty, $rust_type: ty, $result_type: ty, $create_method: ident, $set_method: ident, $get_method: ident, $release_elements_method: ident) => {
         pub fn $create_name(&'a self, data: &Vec<$rust_type>) -> ResultType<$result_type> {
             let arr = unsafe { self.methods.$create_method.unwrap()(self.env, data.len() as i32) };
-            if self.is_err() {
+            if self.is_err() || arr.is_null() {
                 return Err(self.get_last_error(
                     file!(),
                     line!(),
@@ -96,6 +94,7 @@ macro_rules! define_array_methods {
         }
 
         pub fn $get_name(&'a self, array: sys::jobject) -> ResultType<Vec<$rust_type>> {
+            assert_non_null!(array, concat!(stringify!($get_name), " array is null"));
             let is_copy = std::ptr::null_mut();
             let elements = unsafe { self.methods.$get_method.unwrap()(self.env, array, is_copy) };
             if self.is_err() || elements == std::ptr::null_mut() {
@@ -288,26 +287,22 @@ macro_rules! define_array {
             }
 
             pub fn get_data(&self) -> ResultType<Vec<$type>> {
-                self.0.object.env().$get_fn(unsafe {
-                    self.0
-                        .object
-                        .get_raw()
-                        .ok_or("Cannot get data of null array".to_string())?
-                })
-            }
-        }
-
-        impl IsNull for $name<'_> {
-            fn is_null(&self) -> bool {
-                self.0.is_null()
+                self.0
+                    .object
+                    .env()
+                    .$get_fn(unsafe { self.0.object.get_raw() })
             }
         }
 
         impl<'a> ToJavaValue<'a> for $name<'a> {
             fn to_java_value(&'a self) -> JavaValue<'a> {
                 JavaValue::new(sys::jvalue {
-                    l: unsafe { self.0.get_raw_nullable() },
+                    l: unsafe { self.0.get_raw() },
                 })
+            }
+
+            fn get_type(&self) -> Type {
+                Type::Array
             }
         }
 
@@ -333,7 +328,7 @@ macro_rules! define_array {
 
 #[macro_export]
 macro_rules! define_java_value {
-    ($name: ident, $type: ty, $union_name: ident) => {
+    ($name: ident, $type: ty, $union_name: ident, $java_type: expr) => {
         pub struct $name($type);
 
         impl $name {
@@ -347,6 +342,10 @@ macro_rules! define_java_value {
                 JavaValue::new(sys::jvalue {
                     $union_name: self.0 as _,
                 })
+            }
+
+            fn get_type(&self) -> Type {
+                $java_type
             }
         }
 
@@ -416,7 +415,7 @@ macro_rules! define_object_value_of_method {
             let method = class.get_static_object_method("valueOf", format!("({})L{};", $java_input_type, $class_name).as_str())?;
 
             let val = <$java_value_type>::new(value);
-            let res = method.call(vec![Box::new(&val)])?;
+            let res = method.call(vec![Box::new(&val)])?.ok_or(format!("{}.valueOf() returned null", $class_name))?;
 
             Ok(res.assign_env(env.get_env()))
         }
@@ -557,13 +556,8 @@ macro_rules! define_field_methods {
             object: &JavaObject,
         ) -> ResultType<$result_type> {
             unsafe {
-                let res = self.methods.$getter_method.unwrap()(
-                    self.env,
-                    object
-                        .get_raw()
-                        .ok_or("Cannot get field of null object".to_string())?,
-                    field.id(),
-                );
+                let res =
+                    self.methods.$getter_method.unwrap()(self.env, object.get_raw(), field.id());
                 if self.is_err() {
                     Err(self.get_last_error(
                         file!(),
@@ -584,14 +578,7 @@ macro_rules! define_field_methods {
             value: $result_type,
         ) -> ResultType<()> {
             unsafe {
-                self.methods.$setter_method.unwrap()(
-                    self.env,
-                    object
-                        .get_raw()
-                        .ok_or("Cannot set field of null object".to_string())?,
-                    field.id(),
-                    value,
-                );
+                self.methods.$setter_method.unwrap()(self.env, object.get_raw(), field.id(), value);
                 if self.is_err() {
                     Err(self.get_last_error(
                         file!(),
@@ -613,7 +600,7 @@ macro_rules! define_field_methods {
             unsafe {
                 let res = self.methods.$static_getter_method.unwrap()(
                     self.env,
-                    class.class()?,
+                    class.class(),
                     field.id(),
                 );
                 if self.is_err() {
@@ -638,7 +625,7 @@ macro_rules! define_field_methods {
             unsafe {
                 self.methods.$static_setter_method.unwrap()(
                     self.env,
-                    class.class()?,
+                    class.class(),
                     field.id(),
                     value,
                 );
@@ -668,4 +655,16 @@ macro_rules! function {
         let name = type_name_of(f);
         &name[..name.len() - 3]
     }};
+}
+
+#[macro_export]
+macro_rules! assert_non_null {
+    ($value: expr) => {
+        assert_non_null!($value, concat!("Value is null: ", stringify!($value)))
+    };
+    ($value: expr, $message: expr) => {
+        if $value.is_null() {
+            panic!($message);
+        }
+    };
 }

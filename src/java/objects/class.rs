@@ -13,13 +13,14 @@ use crate::java::objects::method::{
 use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
 use crate::java::traits::GetRaw;
 use crate::java::util::util::ResultType;
-use crate::{define_get_method_method, sys};
+use crate::{assert_non_null, define_get_method_method, sys};
 use std::error::Error;
 
 pub struct JavaClass<'a>(LocalJavaObject<'a>);
 
 impl<'a> JavaClass<'a> {
     pub fn new(object: sys::jclass, env: &'a JavaEnvWrapper<'a>) -> Self {
+        assert_non_null!(object);
         Self(LocalJavaObject::new(object, env))
     }
 
@@ -158,17 +159,11 @@ impl<'a> JavaClass<'a> {
     }
 
     pub fn is_assignable_from(&self, other: &JavaClass) -> ResultType<bool> {
-        unsafe {
-            self.0
-                .env()
-                .is_assignable_from(other.class()?, self.class()?)
-        }
+        unsafe { self.0.env().is_assignable_from(other.class(), self.class()) }
     }
 
-    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
-        self.0
-            .get_raw()
-            .ok_or("Cannot get class of null pointer".into())
+    pub(in crate::java) unsafe fn class(&self) -> sys::jclass {
+        self.0.get_raw()
     }
 }
 
@@ -190,10 +185,8 @@ impl GlobalJavaClass {
         self.0
     }
 
-    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
-        self.0
-            .get_raw()
-            .ok_or("Cannot get class of null pointer".into())
+    pub(in crate::java) unsafe fn class(&self) -> sys::jclass {
+        self.0.get_raw()
     }
 }
 

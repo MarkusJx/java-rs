@@ -3,7 +3,7 @@ use crate::java::objects::args::JavaArgs;
 use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::util::util::ResultType;
-use crate::sys;
+use crate::{assert_non_null, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 pub struct JavaConstructor<'a> {
@@ -13,6 +13,7 @@ pub struct JavaConstructor<'a> {
 
 impl<'a> JavaConstructor<'a> {
     pub(in crate::java) fn new(method: sys::jmethodID, class: &'a JavaClass<'a>) -> Self {
+        assert_non_null!(method);
         Self { method, class }
     }
 
@@ -24,7 +25,7 @@ impl<'a> JavaConstructor<'a> {
         env.get_env().new_instance(self, args)
     }
 
-    pub(in crate::java) unsafe fn class(&self) -> ResultType<sys::jclass> {
+    pub(in crate::java) unsafe fn class(&self) -> sys::jclass {
         self.class.class()
     }
 

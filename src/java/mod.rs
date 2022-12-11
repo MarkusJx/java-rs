@@ -10,6 +10,7 @@ pub mod java_type;
 pub mod java_vm;
 mod jni_error;
 pub mod objects;
+pub mod signature;
 pub mod traits;
 pub mod util;
 mod vm_ptr;

@@ -14,7 +14,7 @@ macro_rules! get_integer {
             .unwrap();
         let int = JavaInt::new(1234);
 
-        let $result_name = value_of.call(vec![Box::new(&int)]).unwrap();
+        let $result_name = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
     };
 }
 
@@ -93,7 +93,7 @@ fn byte_method() {
         .unwrap();
 
     let byte = JavaByte::new(123);
-    let result = value_of.call(vec![Box::new(&byte)]).unwrap();
+    let result = value_of.call(vec![Box::new(&byte)]).unwrap().unwrap();
     let byte_value = class
         .get_byte_method("byteValue", "()B")
         .unwrap()
@@ -111,7 +111,7 @@ fn char_method() {
         .unwrap();
 
     let char = JavaChar::new('a' as u16);
-    let result = value_of.call(vec![Box::new(&char)]).unwrap();
+    let result = value_of.call(vec![Box::new(&char)]).unwrap().unwrap();
     let char_value = class
         .get_char_method("charValue", "()C")
         .unwrap()
