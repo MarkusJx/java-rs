@@ -228,6 +228,10 @@ impl JavaType {
         Self::new("java.lang.String".to_string(), false)
     }
 
+    pub fn void() -> Self {
+        Self::new("void".to_string(), false)
+    }
+
     /// Get the return type of a jni method signature. This is used by
     /// [`get_method_id`](crate::java::java_env_wrapper::JavaEnvWrapper::get_method_id) and
     /// [`get_static_method_id`](crate::java::java_env_wrapper::JavaEnvWrapper::get_static_method_id).

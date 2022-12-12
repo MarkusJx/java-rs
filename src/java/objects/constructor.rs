@@ -3,18 +3,28 @@ use crate::java::objects::args::JavaArgs;
 use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::util::util::ResultType;
+use crate::signature::Signature;
 use crate::{assert_non_null, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 pub struct JavaConstructor<'a> {
     method: sys::jmethodID,
     class: &'a JavaClass<'a>,
+    signature: Signature,
 }
 
 impl<'a> JavaConstructor<'a> {
-    pub(in crate::java) fn new(method: sys::jmethodID, class: &'a JavaClass<'a>) -> Self {
+    pub(in crate::java) fn new(
+        method: sys::jmethodID,
+        class: &'a JavaClass<'a>,
+        signature: Signature,
+    ) -> Self {
         assert_non_null!(method);
-        Self { method, class }
+        Self {
+            method,
+            class,
+            signature,
+        }
     }
 
     pub fn new_instance<'b>(
@@ -33,10 +43,15 @@ impl<'a> JavaConstructor<'a> {
         self.method
     }
 
+    pub fn get_signature(&self) -> &Signature {
+        &self.signature
+    }
+
     pub fn from_global(global: &GlobalJavaConstructor, class: &'a JavaClass<'a>) -> Self {
         Self {
             method: global.method.load(Ordering::Relaxed),
             class,
+            signature: global.signature.clone(),
         }
     }
 }
@@ -44,13 +59,19 @@ impl<'a> JavaConstructor<'a> {
 pub struct GlobalJavaConstructor {
     method: AtomicPtr<sys::_jmethodID>,
     class: GlobalJavaClass,
+    signature: Signature,
 }
 
 impl GlobalJavaConstructor {
-    pub fn from_local(local: JavaConstructor<'_>, class: GlobalJavaClass) -> Self {
+    pub fn from_local(
+        local: JavaConstructor<'_>,
+        class: GlobalJavaClass,
+        signature: Signature,
+    ) -> Self {
         Self {
             method: AtomicPtr::new(local.method),
             class,
+            signature,
         }
     }
 
@@ -67,6 +88,7 @@ impl Clone for GlobalJavaConstructor {
         Self {
             method: AtomicPtr::new(self.method.load(Ordering::Relaxed)),
             class: self.class.clone(),
+            signature: self.signature.clone(),
         }
     }
 }

@@ -23,6 +23,7 @@ use crate::java::objects::value::JavaBoolean;
 use crate::java::traits::GetRaw;
 use crate::java::util::util::{jni_error_to_string, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
+use crate::signature::Signature;
 use crate::{
     assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
 };
@@ -537,6 +538,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 class,
                 JavaType::from_method_return_type(signature)?,
                 false,
+                Signature::from_jni(signature)?,
             ))
         }
     }
@@ -571,12 +573,29 @@ impl<'a> JavaEnvWrapper<'a> {
                 class,
                 JavaType::from_method_return_type(signature)?,
                 true,
+                Signature::from_jni(signature)?,
             ))
         }
     }
 
-    unsafe fn convert_args(&self, args: JavaArgs) -> Vec<sys::jvalue> {
-        args.iter().map(|arg| arg.to_java_value().value()).collect()
+    unsafe fn convert_args(
+        &self,
+        args: JavaArgs,
+        signature: &Signature,
+    ) -> ResultType<Vec<sys::jvalue>> {
+        if !signature.matches(&args) {
+            Err(format!(
+                "The arguments do not match the method signature: ({}) != {}",
+                args.into_iter()
+                    .map(|a| a.get_type().to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+                signature
+            )
+            .into())
+        } else {
+            Ok(args.iter().map(|arg| arg.to_java_value().value()).collect())
+        }
     }
 
     pub fn call_object_method(
@@ -596,7 +615,7 @@ impl<'a> JavaEnvWrapper<'a> {
         resolve_errors: bool,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
-            let args = self.convert_args(args);
+            let args = self.convert_args(args, method.get_signature())?;
             let obj = self.methods.CallObjectMethodA.unwrap()(
                 self.env,
                 object.get_raw(),
@@ -627,7 +646,7 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs<'_>,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
-            let args = self.convert_args(args);
+            let args = self.convert_args(args, method.get_signature())?;
             let obj = self.methods.CallStaticObjectMethodA.unwrap()(
                 self.env,
                 class.class(),
@@ -1217,7 +1236,7 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs,
     ) -> ResultType<LocalJavaObject<'a>> {
         let res = unsafe {
-            let args = self.convert_args(args);
+            let args = self.convert_args(args, constructor.get_signature())?;
             self.methods.NewObjectA.unwrap()(
                 self.env,
                 constructor.class(),
@@ -1250,7 +1269,11 @@ impl<'a> JavaEnvWrapper<'a> {
         if self.is_err() || id == ptr::null_mut() {
             Err(self.get_last_error(file!(), line!(), true, "GetMethodID failed")?)
         } else {
-            Ok(JavaConstructor::new(id, class))
+            Ok(JavaConstructor::new(
+                id,
+                class,
+                Signature::from_jni(signature)?,
+            ))
         }
     }
 

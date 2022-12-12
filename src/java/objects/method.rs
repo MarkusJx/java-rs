@@ -5,6 +5,7 @@ use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::util::util::ResultType;
+use crate::signature::Signature;
 use crate::{define_java_methods, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -13,6 +14,7 @@ pub struct JavaMethod<'a> {
     class: &'a JavaClass<'a>,
     return_type: JavaType,
     is_static: bool,
+    signature: Signature,
 }
 
 impl<'a> JavaMethod<'a> {
@@ -21,13 +23,19 @@ impl<'a> JavaMethod<'a> {
         class: &'a JavaClass<'a>,
         return_type: JavaType,
         is_static: bool,
+        signature: Signature,
     ) -> Self {
         Self {
             method,
             class,
             return_type,
             is_static,
+            signature,
         }
+    }
+
+    pub fn get_signature(&self) -> &Signature {
+        &self.signature
     }
 
     pub(in crate::java) unsafe fn id(&'a self) -> sys::jmethodID {
@@ -40,6 +48,7 @@ pub struct GlobalJavaMethod {
     class: GlobalJavaClass,
     return_type: JavaType,
     is_static: bool,
+    signature: Signature,
 }
 
 impl GlobalJavaMethod {
@@ -49,6 +58,7 @@ impl GlobalJavaMethod {
             class,
             return_type: method.return_type,
             is_static: method.is_static,
+            signature: method.signature,
         }
     }
 
@@ -67,6 +77,7 @@ impl Clone for GlobalJavaMethod {
             class: self.class.clone(),
             return_type: self.return_type.clone(),
             is_static: self.is_static,
+            signature: self.signature.clone(),
         }
     }
 }

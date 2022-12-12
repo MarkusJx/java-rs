@@ -8,7 +8,7 @@ macro_rules! define_call_methods {
             args: JavaArgs,
         ) -> ResultType<$result_type> {
             unsafe {
-                let args = self.convert_args(args);
+                let args = self.convert_args(args, method.get_signature())?;
                 let $result_name = self.methods.$method.unwrap()(
                     self.env,
                     object.get_raw(),
@@ -35,7 +35,7 @@ macro_rules! define_call_methods {
             args: JavaArgs,
         ) -> ResultType<$result_type> {
             unsafe {
-                let args = self.convert_args(args);
+                let args = self.convert_args(args, method.get_signature())?;
                 let $result_name = self.methods.$static_method.unwrap()(
                     self.env,
                     class.class(),
@@ -186,6 +186,7 @@ macro_rules! define_java_methods {
                     &class,
                     method.return_type,
                     method.is_static,
+                    method.signature,
                 )))
             }
         }
@@ -260,6 +261,7 @@ macro_rules! define_java_methods {
                     &class,
                     method.return_type,
                     method.is_static,
+                    method.signature,
                 )))
             }
         }

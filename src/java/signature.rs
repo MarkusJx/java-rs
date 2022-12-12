@@ -4,6 +4,7 @@ use crate::util::util::ResultType;
 use regex::Regex;
 use std::fmt::Display;
 
+#[derive(Clone)]
 pub struct Signature {
     return_type: JavaType,
     args: Vec<JavaType>,
@@ -108,7 +109,7 @@ impl Signature {
         )
     }
 
-    pub fn matches(&self, args: JavaArgs) -> bool {
+    pub fn matches(&self, args: &JavaArgs) -> bool {
         if self.num_args() != args.len() {
             return false;
         }

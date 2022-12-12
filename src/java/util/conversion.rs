@@ -9,6 +9,7 @@ use crate::java::objects::method::GlobalJavaMethod;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::string::JavaString;
 use crate::java::util::util::ResultType;
+use crate::signature::Signature;
 
 pub fn parameter_to_type(env: &JavaEnv, parameter: &LocalJavaObject) -> ResultType<JavaType> {
     let parameter_class = env.find_class("java/lang/reflect/Parameter")?;
@@ -132,7 +133,11 @@ pub fn get_constructor_from_signature(
     let constructor = class.get_constructor(signature.as_str())?;
 
     let global_class = GlobalJavaClass::by_name(class_name.as_str(), env)?;
-    Ok(GlobalJavaConstructor::from_local(constructor, global_class))
+    Ok(GlobalJavaConstructor::from_local(
+        constructor,
+        global_class,
+        Signature::new(JavaType::void(), parameters.clone()),
+    ))
 }
 
 pub fn get_field_type(env: &JavaEnv, field: &LocalJavaObject) -> ResultType<JavaType> {
