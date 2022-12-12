@@ -267,14 +267,6 @@ impl<'a> JavaEnvWrapper<'a> {
     /// If this returns `Err`, an error occurred while converting the stack frames,
     /// if this returns `Ok`, everything was converted correctly.
     ///
-    /// # Example
-    /// ```rust
-    /// // Only call this if you are sure there is an error pending.
-    /// if self.is_err() {
-    ///     return Err(self.get_last_error(file!(), line!(), true, "Alt text")?);
-    /// }
-    /// ```
-    ///
     /// # Parameters
     /// - `file` - The (source) file the error occurred in.
     /// - `line` - The line the error occurred on.

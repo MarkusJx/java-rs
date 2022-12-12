@@ -130,13 +130,13 @@ impl Display for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "({}){}",
+            "{} ({})",
+            self.return_type.to_string(),
             self.args
                 .iter()
                 .map(|arg| arg.to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
-            self.return_type.to_string()
         )
     }
 }

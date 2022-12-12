@@ -387,7 +387,9 @@ macro_rules! define_object_to_val_method {
 /// Define a method to create a new Java object from a primitive value.
 /// # Example
 /// Create a method to create a `java.lang.Integer` from a `i32`.
-/// ```rust
+/// ```ignore
+/// use java_rs::define_object_value_of_method;
+///
 /// define_object_value_of_method!(
 ///    /// Some doc comment
 ///    => from_i32, "java/lang/Integer", "I", i32, JavaInt

@@ -90,7 +90,7 @@ impl JavaType {
     /// let jni_type = JavaType::new("Ljava/lang/String;".into(), true);
     ///
     /// // Both should be the same
-    /// assert_eq!(java_type, jni_type);
+    /// assert_eq!(java_type.to_string(), jni_type.to_string());
     /// ```
     pub fn new(mut signature: String, convert: bool) -> Self {
         if convert {
@@ -241,10 +241,10 @@ impl JavaType {
     /// use java_rs::java_type::JavaType;
     ///
     /// // Get the return type of a method signature
-    /// let java_type = JavaType::get_return_type("()I");
+    /// let java_type = JavaType::from_method_return_type("()I").unwrap();
     ///
     /// let expected = JavaType::new("int".into(), false);
-    /// assert_eq!(java_type, expected);
+    /// assert_eq!(java_type.to_string(), expected.to_string());
     /// ```
     pub fn from_method_return_type(method_signature: &str) -> ResultType<Self> {
         let signature = method_signature.split(")").last().ok_or(format!(
@@ -273,8 +273,8 @@ impl JavaType {
     /// let t = JavaType::new("java.lang.String[]".into(), false);
     /// let inner = t.inner();
     ///
-    /// assert_eq!(inner.is_some(), type.is_array());
-    /// assert_eq!(inner.unwrap().type_enum(), Type::String);
+    /// assert_eq!(inner.is_some(), t.is_array());
+    /// assert_eq!(inner.unwrap().lock().unwrap().type_enum(), Type::String);
     /// ```
     pub fn inner(&self) -> Option<Arc<Mutex<JavaType>>> {
         self.inner.clone()

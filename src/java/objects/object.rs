@@ -102,11 +102,22 @@ impl<'a> LocalJavaObject<'a> {
         /// This specific method creates a new `java.lang.Integer` from ``i32``.
         /// # Example
         /// ```rust
+        /// use java_rs::java_vm::{InternalJavaOptions, JavaVM};
         /// use java_rs::objects::object::LocalJavaObject;
-        /// let lang_int = LocalJavaObject::from_i32(&env, 42)?;
+        ///
+        /// let env = JavaVM::new(
+        ///     &"1.8".to_string(),
+        ///     None,
+        ///     &vec![],
+        ///     InternalJavaOptions::default(),
+        /// )
+        /// .unwrap()
+        /// .attach_thread()
+        /// .unwrap();
+        /// let lang_int = LocalJavaObject::from_i32(&env, 42).unwrap();
         ///
         /// // Convert the value back to i32
-        /// let original_value = env.object_to_int(&lang_int)?;
+        /// let original_value = env.object_to_int(&lang_int).unwrap();
         /// assert_eq!(original_value, 42);
         /// ```
         => from_i32, "java/lang/Integer", "I", i32, JavaInt
