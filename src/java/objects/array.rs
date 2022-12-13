@@ -62,10 +62,14 @@ impl<'a> JavaObjectArray<'a> {
     pub unsafe fn from_raw(
         object: sys::jobject,
         env: &'a JavaEnv<'a>,
-        signature: JavaType,
+        signature: Option<JavaType>,
     ) -> Self {
         Self(JavaArray {
-            object: LocalJavaObject::from_raw(object, env, Some(signature)),
+            object: LocalJavaObject::from_raw(
+                object,
+                env,
+                Some(signature.unwrap_or_else(|| JavaType::array(JavaType::object()))),
+            ),
         })
     }
 
