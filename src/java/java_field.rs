@@ -192,6 +192,10 @@ impl<'a> JavaObjectField<'a> {
         self.0.class.env().set_object_field(self, object, value)
     }
 
+    pub fn get_signature(&self) -> &JavaType {
+        &self.0.field_type
+    }
+
     pub fn from_global(field: GlobalJavaField, class: &'a JavaClass<'a>) -> ResultType<Self> {
         if field.is_static {
             return Err("Tried creating a non-static field from a static field".into());
@@ -262,6 +266,10 @@ impl<'a> StaticJavaObjectField<'a> {
             .class
             .env()
             .set_static_object_field(self, self.0.class, value)
+    }
+
+    pub fn get_signature(&self) -> &JavaType {
+        &self.0.field_type
     }
 
     pub fn from_global(field: GlobalJavaField, class: &'a JavaClass<'a>) -> ResultType<Self> {

@@ -47,6 +47,10 @@ impl<'a> JavaConstructor<'a> {
         &self.signature
     }
 
+    pub fn get_class(&self) -> &JavaClass<'a> {
+        self.class
+    }
+
     pub fn from_global(global: &GlobalJavaConstructor, class: &'a JavaClass<'a>) -> Self {
         Self {
             method: global.method.load(Ordering::Relaxed),

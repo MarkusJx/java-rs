@@ -1,4 +1,8 @@
+use crate::objects::args::AsJavaArg;
+use crate::objects::string::JavaString;
+use crate::objects::value::JavaInt;
 use crate::signature::Signature;
+use crate::tests::common::get_vm;
 
 #[test]
 fn parse_signature() {
@@ -83,4 +87,31 @@ fn parse_signature_with_many_args() {
     assert_eq!(sig.get_args()[2].to_string(), "int[][]");
     assert_eq!(sig.get_args()[3].to_string(), "boolean[][][]");
     assert_eq!(sig.get_return_type().to_string(), "void");
+}
+
+#[test]
+fn method_with_invalid_number_of_args() {
+    let env = get_vm().attach_thread().unwrap();
+    let cls = env.find_class("java/lang/String").unwrap();
+    let method = cls
+        .get_static_object_method("valueOf", "(I)Ljava/lang/String;")
+        .unwrap();
+
+    method
+        .call(&[JavaInt::from(0).as_arg(), JavaInt::new(0).as_arg()])
+        .expect_err("Should have failed");
+}
+
+#[test]
+fn method_call_with_invalid_args() {
+    let env = get_vm().attach_thread().unwrap();
+    let cls = env.find_class("java/lang/String").unwrap();
+    let method = cls
+        .get_static_object_method("valueOf", "(I)Ljava/lang/String;")
+        .unwrap();
+    method
+        .call(&[JavaString::from_string("hello".into(), &env)
+            .unwrap()
+            .as_arg()])
+        .expect_err("Should have failed");
 }

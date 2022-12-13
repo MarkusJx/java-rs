@@ -44,7 +44,7 @@ impl ClassMethod {
             .bind(JavaObject::from(class));
         let methods = JavaObjectArray::from(
             get_methods
-                .call(vec![])?
+                .call(&[])?
                 .ok_or("Class.getMethods() returned null".to_string())?,
         );
         let num_methods = methods.len()?;

@@ -6,7 +6,8 @@ use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::value::JavaValue;
 use crate::java::traits::{GetRaw, ToJavaValue};
 use crate::java::util::util::ResultType;
-use crate::java_type::Type;
+use crate::java_type::{JavaType, Type};
+use crate::traits::GetSignature;
 use crate::{define_array, sys};
 
 pub struct JavaArray<'a> {
@@ -18,6 +19,12 @@ impl JavaArray<'_> {
         self.object
             .env()
             .get_array_length(unsafe { self.object.get_raw() })
+    }
+}
+
+impl GetSignature for JavaArray<'_> {
+    fn get_signature(&self) -> &JavaType {
+        self.object.get_signature()
     }
 }
 
@@ -52,9 +59,13 @@ impl<'a> JavaObjectArray<'a> {
         Ok(array)
     }
 
-    pub unsafe fn from_raw(object: sys::jobject, env: &'a JavaEnv<'a>) -> Self {
+    pub unsafe fn from_raw(
+        object: sys::jobject,
+        env: &'a JavaEnv<'a>,
+        signature: JavaType,
+    ) -> Self {
         Self(JavaArray {
-            object: LocalJavaObject::from_raw(object, env),
+            object: LocalJavaObject::from_raw(object, env, Some(signature)),
         })
     }
 
@@ -90,6 +101,12 @@ impl<'a> JavaObjectArray<'a> {
 
     pub fn into_object(self) -> LocalJavaObject<'a> {
         self.0.object
+    }
+}
+
+impl GetSignature for JavaObjectArray<'_> {
+    fn get_signature(&self) -> &JavaType {
+        self.0.get_signature()
     }
 }
 

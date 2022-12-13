@@ -3,6 +3,7 @@ use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::method::{GlobalJavaMethod, JavaCharMethod, JavaIntMethod};
 use crate::java::objects::string::JavaString;
 use crate::java::objects::value::{JavaByte, JavaChar, JavaInt};
+use crate::objects::args::AsJavaArg;
 use crate::tests::common::get_vm;
 
 macro_rules! get_integer {
@@ -14,7 +15,7 @@ macro_rules! get_integer {
             .unwrap();
         let int = JavaInt::new(1234);
 
-        let $result_name = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
+        let $result_name = value_of.call(&[Box::new(&int)]).unwrap().unwrap();
     };
 }
 
@@ -26,7 +27,7 @@ fn int_method() {
         .get_int_method("intValue", "()I")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(int_value.call(vec![]).unwrap(), 1234);
+    assert_eq!(int_value.call(&[]).unwrap(), 1234);
 }
 
 #[test]
@@ -37,7 +38,7 @@ fn long_method() {
         .get_long_method("longValue", "()J")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(long_value.call(vec![]).unwrap(), 1234 as i64);
+    assert_eq!(long_value.call(&[]).unwrap(), 1234 as i64);
 }
 
 #[test]
@@ -48,7 +49,7 @@ fn double_method() {
         .get_double_method("doubleValue", "()D")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(double_value.call(vec![]).unwrap(), 1234 as f64);
+    assert_eq!(double_value.call(&[]).unwrap(), 1234 as f64);
 }
 
 #[test]
@@ -59,7 +60,7 @@ fn float_method() {
         .get_float_method("floatValue", "()F")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(float_value.call(vec![]).unwrap(), 1234 as f32);
+    assert_eq!(float_value.call(&[]).unwrap(), 1234 as f32);
 }
 
 #[test]
@@ -70,7 +71,7 @@ fn boolean_method() {
         .get_boolean_method("equals", "(Ljava/lang/Object;)Z")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(boolean_value.call(vec![Box::new(&int)]).unwrap(), true);
+    assert_eq!(boolean_value.call(&[int.as_arg()]).unwrap(), true);
 }
 
 #[test]
@@ -81,7 +82,7 @@ fn short_method() {
         .get_short_method("shortValue", "()S")
         .unwrap()
         .bind(JavaObject::from(&int));
-    assert_eq!(short_value.call(vec![]).unwrap(), 1234 as i16);
+    assert_eq!(short_value.call(&[]).unwrap(), 1234 as i16);
 }
 
 #[test]
@@ -93,13 +94,13 @@ fn byte_method() {
         .unwrap();
 
     let byte = JavaByte::new(123);
-    let result = value_of.call(vec![Box::new(&byte)]).unwrap().unwrap();
+    let result = value_of.call(&[Box::new(&byte)]).unwrap().unwrap();
     let byte_value = class
         .get_byte_method("byteValue", "()B")
         .unwrap()
         .bind(JavaObject::from(&result));
 
-    assert_eq!(byte_value.call(vec![]).unwrap(), 123);
+    assert_eq!(byte_value.call(&[]).unwrap(), 123);
 }
 
 #[test]
@@ -111,23 +112,23 @@ fn char_method() {
         .unwrap();
 
     let char = JavaChar::new('a' as u16);
-    let result = value_of.call(vec![Box::new(&char)]).unwrap().unwrap();
+    let result = value_of.call(&[Box::new(&char)]).unwrap().unwrap();
     let char_value = class
         .get_char_method("charValue", "()C")
         .unwrap()
         .bind(JavaObject::from(&result));
 
-    assert_eq!(char_value.call(vec![]).unwrap(), 'a' as u16);
+    assert_eq!(char_value.call(&[]).unwrap(), 'a' as u16);
 }
 
 macro_rules! get_parse_method {
     ($class_name: expr, $method_name: expr, $signature: expr, $method: ident, $result_var: ident) => {
         let env = get_vm().attach_thread().unwrap();
         let cls = JavaClass::by_name($class_name, &env).unwrap();
-        let str = JavaString::try_from("123".to_string(), &env).unwrap();
+        let str = JavaString::from_string("123".to_string(), &env).unwrap();
         let method = cls.$method($method_name, $signature).unwrap();
 
-        let $result_var = method.call(vec![Box::new(&str)]).unwrap();
+        let $result_var = method.call(&[Box::new(&str)]).unwrap();
     };
 }
 
@@ -195,12 +196,12 @@ fn static_short_method() {
 fn static_boolean_method() {
     let env = get_vm().attach_thread().unwrap();
     let cls = JavaClass::by_name("java/lang/Boolean", &env).unwrap();
-    let str = JavaString::try_from("true".to_string(), &env).unwrap();
+    let str = JavaString::from_string("true".to_string(), &env).unwrap();
     let method = cls
         .get_static_boolean_method("parseBoolean", "(Ljava/lang/String;)Z")
         .unwrap();
 
-    let boolean = method.call(vec![Box::new(&str)]).unwrap();
+    let boolean = method.call(&[Box::new(&str)]).unwrap();
     assert_eq!(boolean, true);
 }
 
@@ -212,8 +213,8 @@ fn static_byte_method() {
         .get_static_byte_method("parseByte", "(Ljava/lang/String;)B")
         .unwrap();
 
-    let str = JavaString::try_from("123".to_string(), &env).unwrap();
-    let byte = parse_byte.call(vec![Box::new(&str)]).unwrap();
+    let str = JavaString::from_string("123".to_string(), &env).unwrap();
+    let byte = parse_byte.call(&[Box::new(&str)]).unwrap();
     assert_eq!(byte, 123);
 }
 
@@ -224,7 +225,7 @@ fn static_char_method() {
     let parse_char = class.get_static_char_method("toLowerCase", "(C)C").unwrap();
 
     let c = JavaChar::new('A' as u16);
-    let char = parse_char.call(vec![Box::new(&c)]).unwrap();
+    let char = parse_char.call(&[Box::new(&c)]).unwrap();
     assert_eq!(char, 'a' as u16);
 }
 

@@ -31,7 +31,7 @@ impl ClassConstructor {
             .bind(JavaObject::from(local_class.to_object()));
         let constructors = JavaObjectArray::from(
             get_constructors
-                .call(vec![])?
+                .call(&[])?
                 .ok_or("Class.getConstructors() returned null".to_string())?,
         );
 
@@ -66,7 +66,7 @@ impl ClassConstructor {
 
         let parameters = JavaObjectArray::from(
             get_parameters
-                .call(vec![])?
+                .call(&[])?
                 .ok_or("Constructor.getParameters() returned null".to_string())?,
         );
         let num_parameters = parameters.len()?;

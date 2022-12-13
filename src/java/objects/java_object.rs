@@ -33,6 +33,10 @@ impl<'a> JavaObject<'a> {
     }
 }
 
+pub trait AsJavaObject<'a> {
+    fn as_java_object(&'a self) -> JavaObject<'a>;
+}
+
 impl<'a> GetRaw for JavaObject<'a> {
     unsafe fn get_raw(&self) -> sys::jobject {
         match self {
@@ -77,13 +81,13 @@ impl<'a> From<LocalJavaObject<'a>> for JavaObject<'a> {
 
 impl From<GlobalJavaClass> for JavaObject<'_> {
     fn from(global_java_class: GlobalJavaClass) -> Self {
-        Self::Global(global_java_class.to_object())
+        Self::Global(global_java_class.into_object())
     }
 }
 
 impl From<&GlobalJavaClass> for JavaObject<'_> {
     fn from(global_java_class: &GlobalJavaClass) -> Self {
-        Self::Global(global_java_class.clone().to_object())
+        Self::Global(global_java_class.clone().into_object())
     }
 }
 
@@ -118,7 +122,7 @@ impl<'a> ToJavaValue<'a> for JavaObject<'a> {
 }
 
 impl<'a> GetSignature for JavaObject<'a> {
-    fn get_signature(&self) -> ResultType<JavaType> {
+    fn get_signature(&self) -> &JavaType {
         match self {
             Self::LocalRef(local_object) => local_object.get_signature(),
             Self::Local(local_object) => local_object.get_signature(),

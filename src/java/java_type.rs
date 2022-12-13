@@ -188,6 +188,15 @@ impl JavaType {
         }
     }
 
+    pub fn array(inner: JavaType) -> Self {
+        Self {
+            signature: format!("{}[]", inner.signature),
+            inner: Some(Arc::new(Mutex::new(inner))),
+            type_enum: Type::Array,
+            hash: None,
+        }
+    }
+
     pub fn object() -> Self {
         Self::new("java.lang.Object".to_string(), false)
     }

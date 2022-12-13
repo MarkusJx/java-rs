@@ -68,7 +68,7 @@ impl TryFrom<JavaObject<'_>> for JavaCallResult {
 
     fn try_from(value: JavaObject) -> ResultType<Self> {
         Ok(Self::Object {
-            signature: value.get_signature()?,
+            signature: value.get_signature().clone(),
             object: value.into_global()?,
         })
     }

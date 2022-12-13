@@ -2,12 +2,13 @@ use crate::java::objects::array::{JavaObjectArray, JavaShortArray};
 use crate::java::objects::class::JavaClass;
 use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::string::JavaString;
+use crate::objects::java_object::AsJavaObject;
 use crate::tests::common::get_vm;
 
 fn check_string_array(array: &JavaObjectArray) {
     for i in 0..array.len().unwrap() {
         let str = array.get(i).unwrap().unwrap();
-        let string = JavaString::from(str);
+        let string = JavaString::try_from(str).unwrap();
         assert_eq!(string.to_string().unwrap(), format!("test{}", i + 1));
     }
 }
@@ -17,14 +18,14 @@ fn object_array_from_objects() {
     let env = get_vm().attach_thread().unwrap();
     let class = JavaClass::by_name("java/lang/String", &env).unwrap();
 
-    let str1 = JavaString::try_from("test1".to_string(), &env).unwrap();
-    let str2 = JavaString::try_from("test2".to_string(), &env).unwrap();
-    let str3 = JavaString::try_from("test3".to_string(), &env).unwrap();
+    let str1 = JavaString::from_string("test1".to_string(), &env).unwrap();
+    let str2 = JavaString::from_string("test2".to_string(), &env).unwrap();
+    let str3 = JavaString::from_string("test3".to_string(), &env).unwrap();
 
     let data = vec![
-        Some(JavaObject::from(&str1)),
-        Some(JavaObject::from(&str2)),
-        Some(JavaObject::from(&str3)),
+        Some(str1.as_java_object()),
+        Some(str2.as_java_object()),
+        Some(str3.as_java_object()),
     ];
     let array = JavaObjectArray::from_vec(data, &class).unwrap();
 
@@ -52,11 +53,11 @@ fn object_array_set() {
     let env = get_vm().attach_thread().unwrap();
     let class = JavaClass::by_name("java/lang/String", &env).unwrap();
 
-    let str1 = JavaString::try_from("test1".to_string(), &env).unwrap();
-    let str2 = JavaString::try_from("test2".to_string(), &env).unwrap();
-    let str3 = JavaString::try_from("test3".to_string(), &env).unwrap();
-    let str4 = JavaString::try_from("test4".to_string(), &env).unwrap();
-    let str5 = JavaString::try_from("test5".to_string(), &env).unwrap();
+    let str1 = JavaString::from_string("test1".to_string(), &env).unwrap();
+    let str2 = JavaString::from_string("test2".to_string(), &env).unwrap();
+    let str3 = JavaString::from_string("test3".to_string(), &env).unwrap();
+    let str4 = JavaString::from_string("test4".to_string(), &env).unwrap();
+    let str5 = JavaString::from_string("test5".to_string(), &env).unwrap();
 
     let mut array = JavaObjectArray::new(&class, 5).unwrap();
 

@@ -59,7 +59,7 @@ macro_rules! define_call_methods {
 
 #[macro_export]
 macro_rules! define_array_methods {
-    ($create_name: ident, $get_name: ident, $jni_type: ty, $rust_type: ty, $result_type: ty, $create_method: ident, $set_method: ident, $get_method: ident, $release_elements_method: ident) => {
+    ($create_name: ident, $get_name: ident, $jni_type: ty, $rust_type: ty, $result_type: ty, $create_method: ident, $set_method: ident, $get_method: ident, $release_elements_method: ident, $signature: expr) => {
         pub fn $create_name(&'a self, data: &Vec<$rust_type>) -> ResultType<$result_type> {
             let arr = unsafe { self.methods.$create_method.unwrap()(self.env, data.len() as i32) };
             if self.is_err() || arr.is_null() {
@@ -90,7 +90,11 @@ macro_rules! define_array_methods {
                 )?);
             }
 
-            Ok(<$result_type>::from(LocalJavaObject::new(arr, self)))
+            Ok(<$result_type>::from(LocalJavaObject::new(
+                arr,
+                self,
+                JavaType::new($signature.to_string(), false),
+            )))
         }
 
         pub fn $get_name(&'a self, array: sys::jobject) -> ResultType<Vec<$rust_type>> {
@@ -142,8 +146,12 @@ macro_rules! define_java_methods {
 
         impl<'a> $name<'a> {
             #[allow(dead_code)]
-            pub fn new(method: JavaMethod<'a>) -> Self {
-                Self(method)
+            pub fn new(method: JavaMethod<'a>) -> ResultType<Self> {
+                if !$allowed_types.contains(&method.get_signature().get_return_type().type_enum()) {
+                    Err(format!("Invalid return type for method {}", stringify!($name)).into())
+                } else {
+                    Ok(Self(method))
+                }
             }
 
             pub fn bind(self, object: JavaObject<'a>) -> $bound_name<'a> {
@@ -222,8 +230,16 @@ macro_rules! define_java_methods {
 
         impl<'a> $static_name<'a> {
             #[allow(dead_code)]
-            pub fn new(method: JavaMethod<'a>) -> Self {
-                Self(method)
+            pub fn new(method: JavaMethod<'a>) -> ResultType<Self> {
+                if !$allowed_types.contains(&method.get_signature().get_return_type().type_enum()) {
+                    Err(format!(
+                        "Invalid return type for method {}",
+                        stringify!($static_name)
+                    )
+                    .into())
+                } else {
+                    Ok(Self(method))
+                }
             }
 
             pub fn call(&self, args: JavaArgs<'_>) -> ResultType<$result_type> {
@@ -325,6 +341,12 @@ macro_rules! define_array {
                 JavaObject::from(self.0.object)
             }
         }
+
+        impl GetSignature for $name<'_> {
+            fn get_signature(&self) -> &JavaType {
+                self.0.get_signature()
+            }
+        }
     };
 }
 
@@ -336,6 +358,12 @@ macro_rules! define_java_value {
         impl $name {
             pub fn new(value: $type) -> Self {
                 Self(value)
+            }
+        }
+
+        impl From<$type> for $name {
+            fn from(value: $type) -> Self {
+                Self::new(value)
             }
         }
 
@@ -365,9 +393,9 @@ macro_rules! define_java_value {
 macro_rules! define_get_method_method {
     ($name: ident, $getter: ident, $result_type: ident) => {
         pub fn $name(&'a self, method_name: &str, signature: &str) -> ResultType<$result_type<'a>> {
-            let method = self.0.env().$getter(&self, method_name, signature)?;
+            let method = self.object.env().$getter(&self, method_name, signature)?;
 
-            Ok($result_type::new(method))
+            $result_type::new(method)
         }
     };
 }
@@ -379,7 +407,7 @@ macro_rules! define_object_to_val_method {
             let class = self.find_class($class_name)?;
             let method = class.$method_getter($method_name, $signature)?;
 
-            method.call(JavaObject::from(object), vec![])
+            method.call(JavaObject::from(object), &[])
         }
     };
 }
@@ -419,7 +447,7 @@ macro_rules! define_object_value_of_method {
             let method = class.get_static_object_method("valueOf", format!("({})L{};", $java_input_type, $class_name).as_str())?;
 
             let val = <$java_value_type>::new(value);
-            let res = method.call(vec![Box::new(&val)])?.ok_or(format!("{}.valueOf() returned null", $class_name))?;
+            let res = method.call(&[Box::new(&val)])?.ok_or(format!("{}.valueOf() returned null", $class_name))?;
 
             Ok(res.assign_env(env.get_env()))
         }

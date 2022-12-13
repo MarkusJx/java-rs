@@ -37,7 +37,7 @@ impl ClassField {
 
         let fields = JavaObjectArray::from(
             get_declared_fields
-                .call(vec![])?
+                .call(&[])?
                 .ok_or("Class.getFields() returned null".to_string())?,
         );
         let num_fields = fields.len()?;
@@ -49,11 +49,11 @@ impl ClassField {
                 .ok_or("A value in the array returned by Class.getFields() was null".to_string())?;
 
             if method_is_public(&env, &field, false, only_static)? {
-                let name = JavaString::from(
+                let name = JavaString::try_from(
                     get_name
-                        .call(JavaObject::from(&field), vec![])?
+                        .call(JavaObject::from(&field), &[])?
                         .ok_or("Field.getName() returned null".to_string())?,
-                )
+                )?
                 .to_string()?;
 
                 let class_field = ClassField::from_field(

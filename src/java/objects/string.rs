@@ -6,6 +6,7 @@ use crate::java::objects::value::JavaValue;
 use crate::java::traits::{GetRaw, GetSignature, ToJavaValue};
 use crate::java::util::util::ResultType;
 use crate::java_type::Type;
+use crate::objects::java_object::{AsJavaObject, JavaObject};
 use crate::sys;
 use std::error::Error;
 
@@ -13,7 +14,7 @@ pub struct JavaString<'a>(pub(in crate::java::objects) LocalJavaObject<'a>);
 
 impl<'a> JavaString<'a> {
     pub(in crate::java) fn new(env: &'a JavaEnvWrapper<'a>, string: sys::jstring) -> Self {
-        Self(LocalJavaObject::new(string, env))
+        Self(LocalJavaObject::new(string, env, JavaType::string()))
     }
 
     pub(in crate::java) fn _try_from(
@@ -23,7 +24,7 @@ impl<'a> JavaString<'a> {
         env.string_to_java_string(string)
     }
 
-    pub fn try_from(string: String, env: &'a JavaEnv<'a>) -> ResultType<Self> {
+    pub fn from_string(string: String, env: &'a JavaEnv<'a>) -> ResultType<Self> {
         env.get_env().string_to_java_string(string)
     }
 
@@ -40,12 +41,16 @@ impl<'a> JavaString<'a> {
     }
 
     pub unsafe fn from_raw(env: &'a JavaEnv<'a>, string: sys::jstring) -> Self {
-        Self(LocalJavaObject::new(string, env.get_env()))
+        Self(LocalJavaObject::new(
+            string,
+            env.get_env(),
+            JavaType::string(),
+        ))
     }
 }
 
 impl<'a> GetSignature for JavaString<'a> {
-    fn get_signature(&self) -> ResultType<JavaType> {
+    fn get_signature(&self) -> &JavaType {
         self.0.get_signature()
     }
 }
@@ -68,9 +73,21 @@ impl<'a> Into<LocalJavaObject<'a>> for JavaString<'a> {
     }
 }
 
-impl<'a> From<LocalJavaObject<'a>> for JavaString<'a> {
-    fn from(object: LocalJavaObject<'a>) -> Self {
-        JavaString(object)
+impl<'a> TryFrom<LocalJavaObject<'a>> for JavaString<'a> {
+    type Error = Box<dyn Error>;
+
+    fn try_from(object: LocalJavaObject<'a>) -> ResultType<Self> {
+        if object.get_signature().type_enum() != Type::String {
+            Err(format!("Type '{}' is not a string", object.get_type()).into())
+        } else {
+            Ok(JavaString(object))
+        }
+    }
+}
+
+impl<'a> AsJavaObject<'a> for JavaString<'a> {
+    fn as_java_object(&'a self) -> JavaObject<'a> {
+        JavaObject::LocalRef(&self.0)
     }
 }
 

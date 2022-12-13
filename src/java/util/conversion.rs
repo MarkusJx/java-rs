@@ -19,13 +19,13 @@ pub fn parameter_to_type(env: &JavaEnv, parameter: &LocalJavaObject) -> ResultTy
     let get_name = class_class.get_object_method("getName", "()Ljava/lang/String;")?;
 
     let parameter_type = get_type
-        .call(JavaObject::from(parameter), vec![])?
+        .call(JavaObject::from(parameter), &[])?
         .ok_or("Parameter.getType() returned null".to_string())?;
-    let parameter_name = JavaString::from(
+    let parameter_name = JavaString::try_from(
         get_name
-            .call(JavaObject::from(&parameter_type), vec![])?
+            .call(JavaObject::from(&parameter_type), &[])?
             .ok_or("Class.getName() returned null".to_string())?,
-    );
+    )?;
 
     Ok(JavaType::new(parameter_name.try_into()?, true))
 }
@@ -36,11 +36,11 @@ pub fn get_method_name(env: &JavaEnv, method: &LocalJavaObject) -> ResultType<St
         .get_object_method("getName", "()Ljava/lang/String;")?
         .bind(method.into());
 
-    let method_name = JavaString::from(
+    let method_name = JavaString::try_from(
         get_name
-            .call(vec![])?
+            .call(&[])?
             .ok_or("Method.getName() returned null".to_string())?,
-    );
+    )?;
     Ok(method_name.try_into()?)
 }
 
@@ -54,13 +54,13 @@ pub fn get_method_return_type(env: &JavaEnv, method: &LocalJavaObject) -> Result
     let get_name = class_class.get_object_method("getName", "()Ljava/lang/String;")?;
 
     let return_type = get_return_type
-        .call(vec![])?
+        .call(&[])?
         .ok_or("Method.getReturnType() returned null".to_string())?;
-    let return_type_name = JavaString::from(
+    let return_type_name = JavaString::try_from(
         get_name
-            .call(JavaObject::from(&return_type), vec![])?
+            .call(JavaObject::from(&return_type), &[])?
             .ok_or("Class.getName() returned null".to_string())?,
-    );
+    )?;
     Ok(JavaType::new(return_type_name.try_into()?, true))
 }
 
@@ -71,7 +71,7 @@ pub fn get_method_parameters(env: &JavaEnv, method: &LocalJavaObject) -> ResultT
         .bind(method.into());
     let parameters = JavaObjectArray::from(
         get_parameters
-            .call(vec![])?
+            .call(&[])?
             .ok_or("Method.getParameters() returned null".to_string())?,
     );
 
@@ -150,13 +150,13 @@ pub fn get_field_type(env: &JavaEnv, field: &LocalJavaObject) -> ResultType<Java
     let get_name = class_class.get_object_method("getName", "()Ljava/lang/String;")?;
 
     let field_type = get_type
-        .call(vec![])?
+        .call(&[])?
         .ok_or("Field.getType() returned null".to_string())?;
-    let field_type_name = JavaString::from(
+    let field_type_name = JavaString::try_from(
         get_name
-            .call(JavaObject::from(&field_type), vec![])?
+            .call(JavaObject::from(&field_type), &[])?
             .ok_or("Class.getName() returned null".to_string())?,
-    );
+    )?;
     Ok(JavaType::new(field_type_name.try_into()?, true))
 }
 

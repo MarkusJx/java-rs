@@ -13,8 +13,10 @@ use crate::java::traits::{GetRaw, GetSignature, IsInstanceOf, ToJavaValue};
 use crate::java::util::util::ResultType;
 use crate::java::vm_ptr::JavaVMPtr;
 use crate::java_type::Type;
+use crate::objects::java_object::AsJavaObject;
 use crate::{assert_non_null, define_object_value_of_method, sys};
 use std::error::Error;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
@@ -23,45 +25,54 @@ pub struct LocalJavaObject<'a> {
     object: sys::jobject,
     free: bool,
     env: &'a JavaEnvWrapper<'a>,
+    signature: JavaType,
     _marker: PhantomData<&'a sys::jobject>,
 }
 
 impl<'a> LocalJavaObject<'a> {
-    pub(in crate::java) fn new(object: sys::jobject, env: &'a JavaEnvWrapper<'a>) -> Self {
-        if object.is_null() {
-            panic!("LocalJavaObject::new: object is null");
-        }
+    pub(in crate::java) fn new(
+        object: sys::jobject,
+        env: &'a JavaEnvWrapper<'a>,
+        signature: JavaType,
+    ) -> Self {
+        assert_non_null!(object, "LocalJavaObject::new: object is null");
 
         Self {
             object,
             free: true,
             env,
+            signature,
             _marker: PhantomData,
         }
     }
 
-    pub unsafe fn from_raw(object: sys::jobject, env: &'a JavaEnv<'a>) -> Self {
-        if object.is_null() {
-            panic!("LocalJavaObject::from_raw: object is null");
-        }
+    pub unsafe fn from_raw(
+        object: sys::jobject,
+        env: &'a JavaEnv<'a>,
+        signature: Option<JavaType>,
+    ) -> Self {
+        assert_non_null!(object, "LocalJavaObject::from_raw: object is null");
 
         Self {
             object,
+            signature: signature.unwrap_or(JavaType::object()),
             free: true,
             env: env.get_env(),
             _marker: PhantomData,
         }
     }
 
-    pub fn to_java_string(self) -> JavaString<'a> {
-        JavaString::from(self)
+    pub fn to_java_string(self) -> ResultType<JavaString<'a>> {
+        JavaString::try_from(self)
     }
 
     pub fn from(object: &'a GlobalJavaObject, env: &'a JavaEnv<'a>) -> Self {
+        let inner = object.object.lock().unwrap();
         Self {
-            object: object.0.lock().unwrap().object.load(Ordering::Relaxed),
+            object: inner.object.load(Ordering::Relaxed),
             free: false,
             env: env.get_env(),
+            signature: object.signature.clone(),
             _marker: PhantomData,
         }
     }
@@ -70,10 +81,12 @@ impl<'a> LocalJavaObject<'a> {
         object: &'a GlobalJavaObject,
         env: &'a JavaEnvWrapper<'a>,
     ) -> Self {
+        let inner = object.object.lock().unwrap();
         Self {
-            object: object.0.lock().unwrap().object.load(Ordering::Relaxed),
+            object: inner.object.load(Ordering::Relaxed),
             free: false,
             env,
+            signature: object.signature.clone(),
             _marker: PhantomData,
         }
     }
@@ -90,6 +103,7 @@ impl<'a> LocalJavaObject<'a> {
             object: self.object,
             free,
             env,
+            signature: self.signature.clone(),
             _marker: PhantomData,
         }
     }
@@ -152,6 +166,23 @@ impl<'a> LocalJavaObject<'a> {
     );
 }
 
+impl<'a> AsJavaObject<'a> for LocalJavaObject<'a> {
+    fn as_java_object(&'a self) -> JavaObject<'a> {
+        JavaObject::LocalRef(self)
+    }
+}
+
+impl Debug for LocalJavaObject<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "LocalJavaObject(object: {}, signature: {})",
+            unsafe { self.get_raw() } as usize,
+            self.get_signature().to_string()
+        )
+    }
+}
+
 impl GetRaw for LocalJavaObject<'_> {
     unsafe fn get_raw(&self) -> sys::jobject {
         self.object
@@ -165,8 +196,8 @@ impl<'a> IsInstanceOf for LocalJavaObject<'a> {
 }
 
 impl<'a> GetSignature for LocalJavaObject<'a> {
-    fn get_signature(&self) -> ResultType<JavaType> {
-        self.env.get_object_signature(JavaObject::from(self))
+    fn get_signature(&self) -> &JavaType {
+        &self.signature
     }
 }
 
@@ -207,9 +238,7 @@ impl GlobalJavaObjectInternal {
         jvm: Arc<Mutex<JavaVMPtr>>,
         options: InternalJavaOptions,
     ) -> Self {
-        if object.is_null() {
-            panic!("GlobalJavaObjectInternal::new: object is null");
-        }
+        assert_non_null!(object, "GlobalJavaObject::new: object is null");
 
         Self {
             object: AtomicPtr::new(object),
@@ -242,21 +271,26 @@ impl Drop for GlobalJavaObjectInternal {
 }
 
 #[derive(Clone)]
-pub struct GlobalJavaObject(Arc<Mutex<GlobalJavaObjectInternal>>);
+pub struct GlobalJavaObject {
+    object: Arc<Mutex<GlobalJavaObjectInternal>>,
+    signature: JavaType,
+}
 
 impl GlobalJavaObject {
     pub fn new(
         object: sys::jobject,
         jvm: Arc<Mutex<JavaVMPtr>>,
         options: InternalJavaOptions,
+        signature: JavaType,
     ) -> Self {
-        if object.is_null() {
-            panic!("GlobalJavaObject::new: object is null");
-        }
+        assert_non_null!(object, "GlobalJavaObject::new: object is null");
 
-        Self(Arc::new(Mutex::new(GlobalJavaObjectInternal::new(
-            object, jvm, options,
-        ))))
+        Self {
+            object: Arc::new(Mutex::new(GlobalJavaObjectInternal::new(
+                object, jvm, options,
+            ))),
+            signature,
+        }
     }
 
     pub fn get_class<'a>(&self, env: &'a JavaEnv<'a>) -> ResultType<JavaClass<'a>> {
@@ -264,7 +298,7 @@ impl GlobalJavaObject {
     }
 
     pub fn get_vm(&self) -> JavaVM {
-        self.0.lock().unwrap().get_vm()
+        self.object.lock().unwrap().get_vm()
     }
 
     /// Get this object's raw value in order to pass it
@@ -272,14 +306,37 @@ impl GlobalJavaObject {
     /// Disables automatic freeing of the object
     /// and allows the returned value to be `null`.
     pub unsafe fn into_return_value(self) -> sys::jobject {
-        self.0.lock().unwrap().disable_free();
+        self.object.lock().unwrap().disable_free();
         self.get_raw()
+    }
+}
+
+impl<'a> AsJavaObject<'a> for GlobalJavaObject {
+    fn as_java_object(&self) -> JavaObject<'a> {
+        JavaObject::Global(self.clone())
+    }
+}
+
+impl Debug for GlobalJavaObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GlobalJavaObject(object: {}, signature: {})",
+            unsafe { self.get_raw() } as usize,
+            self.get_signature().to_string()
+        )
+    }
+}
+
+impl GetSignature for GlobalJavaObject {
+    fn get_signature(&self) -> &JavaType {
+        &self.signature
     }
 }
 
 impl IsInstanceOf for GlobalJavaObject {
     fn is_instance_of(&self, classname: &str) -> ResultType<bool> {
-        let vm = self.0.lock().unwrap().get_vm();
+        let vm = self.object.lock().unwrap().get_vm();
         let env = vm.attach_thread()?;
 
         env.is_instance_of(self.into(), classname)
@@ -288,23 +345,14 @@ impl IsInstanceOf for GlobalJavaObject {
 
 impl GetRaw for GlobalJavaObject {
     unsafe fn get_raw(&self) -> sys::jobject {
-        self.0.lock().unwrap().object.load(Ordering::Relaxed)
-    }
-}
-
-impl GetSignature for GlobalJavaObject {
-    fn get_signature(&self) -> ResultType<JavaType> {
-        let vm = self.0.lock().unwrap().get_vm();
-        let env = vm.attach_thread()?;
-
-        env.get_env().get_object_signature(self.into())
+        self.object.lock().unwrap().object.load(Ordering::Relaxed)
     }
 }
 
 impl<'a> ToJavaValue<'a> for GlobalJavaObject {
     fn to_java_value(&'a self) -> JavaValue<'a> {
         JavaValue::new(sys::jvalue {
-            l: self.0.lock().unwrap().object.load(Ordering::Relaxed),
+            l: self.object.lock().unwrap().object.load(Ordering::Relaxed),
         })
     }
 
@@ -318,7 +366,9 @@ impl<'a> TryFrom<LocalJavaObject<'a>> for GlobalJavaObject {
 
     fn try_from(mut local: LocalJavaObject<'a>) -> Result<GlobalJavaObject, Self::Error> {
         local.free = false;
-        local.env.new_global_object(local.object)
+        local
+            .env
+            .new_global_object(local.object, local.signature.clone())
     }
 }
 
@@ -327,7 +377,10 @@ impl<'a> TryFrom<JavaString<'a>> for GlobalJavaObject {
 
     fn try_from(mut string: JavaString<'a>) -> Result<GlobalJavaObject, Self::Error> {
         string.0.free = false;
-        string.0.env.new_global_object(string.0.object)
+        string
+            .0
+            .env
+            .new_global_object(string.0.object, JavaType::string())
     }
 }
 

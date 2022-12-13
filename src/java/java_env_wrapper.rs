@@ -23,7 +23,9 @@ use crate::java::objects::value::JavaBoolean;
 use crate::java::traits::GetRaw;
 use crate::java::util::util::{jni_error_to_string, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
+use crate::objects::args::AsJavaArg;
 use crate::signature::Signature;
+use crate::traits::GetSignature;
 use crate::{
     assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
 };
@@ -101,7 +103,7 @@ impl<'a> JavaEnvWrapper<'a> {
             return Err(self.get_last_error(file!(), line!(), true, "GetObjectClass failed")?);
         }
 
-        Ok(JavaClass::new(class, self))
+        Ok(JavaClass::new(class, self, object.get_signature().clone()))
     }
 
     pub fn get_object_signature(&self, object: JavaObject) -> ResultType<JavaType> {
@@ -109,15 +111,15 @@ impl<'a> JavaEnvWrapper<'a> {
 
         let get_class = object_class.get_object_method("getClass", "()Ljava/lang/Class;")?;
         let class = get_class
-            .call(object, vec![])?
+            .call(object, &[])?
             .ok_or("Object.getClass() returned null".to_string())?;
         let java_class = self.get_java_lang_class()?;
 
         let get_name = java_class.get_object_method("getName", "()Ljava/lang/String;")?;
         let java_name = get_name
-            .call(JavaObject::from(class), JavaArgs::new())?
+            .call(JavaObject::from(class), &[])?
             .ok_or("Class.getName() returned null".to_string())?;
-        let name = JavaString::from(java_name).to_string()?;
+        let name = JavaString::try_from(java_name)?.to_string()?;
 
         Ok(JavaType::new(name, true))
     }
@@ -193,7 +195,7 @@ impl<'a> JavaEnvWrapper<'a> {
             return Err(JNIError::from("Call to ExceptionOccurred failed").into());
         }
 
-        Ok(LocalJavaObject::new(throwable, self))
+        Ok(LocalJavaObject::new(throwable, self, JavaType::object()))
     }
 
     /// Convert the frames of the last pending exception to a rust error.
@@ -212,33 +214,30 @@ impl<'a> JavaEnvWrapper<'a> {
         stack_frames: &mut Vec<String>,
     ) -> ResultType<()> {
         let throwable_string = throwable_to_string
-            .call_with_errors(JavaObject::from(throwable), vec![], false)?
+            .call_with_errors(JavaObject::from(throwable), &[], false)?
             .ok_or("Throwable.toString() returned null".to_string())?;
-        causes.push(throwable_string.to_java_string().try_into()?);
+        causes.push(throwable_string.to_java_string()?.try_into()?);
 
         for i in 0..num_frames {
             let frame = frames
                 .get_with_errors(i, false)?
                 .ok_or("A stack frame was null".to_string())?;
             let frame_string = stack_trace_element_to_string
-                .call_with_errors(JavaObject::from(&frame), vec![], false)?
+                .call_with_errors(JavaObject::from(&frame), &[], false)?
                 .ok_or("StackTraceElement.toString() returned null".to_string())?;
-            stack_frames.push(frame_string.to_java_string().try_into()?);
+            stack_frames.push(frame_string.to_java_string()?.try_into()?);
         }
 
         let throwable =
-            throwable_get_cause.call_with_errors(JavaObject::from(throwable), vec![], false)?;
+            throwable_get_cause.call_with_errors(JavaObject::from(throwable), &[], false)?;
         let throwable = if let Some(throwable) = throwable {
             throwable
         } else {
             return Ok(());
         };
 
-        let frames_obj = throwable_get_stack_trace.call_with_errors(
-            JavaObject::from(&throwable),
-            vec![],
-            false,
-        )?;
+        let frames_obj =
+            throwable_get_stack_trace.call_with_errors(JavaObject::from(&throwable), &[], false)?;
 
         let mut frames = if let Some(f) = frames_obj {
             JavaObjectArray::from(f)
@@ -320,7 +319,7 @@ impl<'a> JavaEnvWrapper<'a> {
 
         let mut frames = JavaObjectArray::from(
             throwable_get_stack_trace
-                .call_with_errors(JavaObject::from(&throwable), vec![], false)?
+                .call_with_errors(JavaObject::from(&throwable), &[], false)?
                 .ok_or("Throwable.getStackTrace() returned null".to_string())?,
         );
         let num_frames = frames.len()?;
@@ -359,7 +358,11 @@ impl<'a> JavaEnvWrapper<'a> {
     ///
     /// Used by [`GlobalJavaObject`](crate::java::java_object::GlobalJavaObject)
     /// to create a global references from local ones.
-    pub fn new_global_object(&self, object: sys::jobject) -> ResultType<GlobalJavaObject> {
+    pub fn new_global_object(
+        &self,
+        object: sys::jobject,
+        signature: JavaType,
+    ) -> ResultType<GlobalJavaObject> {
         assert_non_null!(object);
         unsafe {
             let obj = self.methods.NewGlobalRef.unwrap()(self.env, object);
@@ -377,6 +380,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 self.options
                     .ok_or("The options were unset".to_string())?
                     .clone(),
+                signature,
             ))
         }
     }
@@ -402,7 +406,11 @@ impl<'a> JavaEnvWrapper<'a> {
                 )?);
             }
 
-            Ok(JavaClass::new(class, &self))
+            Ok(JavaClass::new(
+                class,
+                &self,
+                JavaType::new(class_name.to_string(), true),
+            ))
         }
     }
 
@@ -417,7 +425,7 @@ impl<'a> JavaEnvWrapper<'a> {
             "forName",
             "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;",
         )?;
-        let java_class_name = JavaString::_try_from(class_name, self)?;
+        let java_class_name = JavaString::_try_from(class_name.clone(), self)?;
         let arg = JavaBoolean::new(true);
 
         let loader = self
@@ -431,14 +439,17 @@ impl<'a> JavaEnvWrapper<'a> {
             .unwrap();
         let class_loader = LocalJavaObject::from_internal(loader.borrow(), self);
         let res = for_name
-            .call(vec![
-                Box::new(&java_class_name),
-                Box::new(&arg),
-                Box::new(&class_loader),
+            .call(&[
+                java_class_name.as_arg(),
+                arg.as_arg(),
+                class_loader.as_arg(),
             ])?
             .ok_or("Class.forName() returned null".to_string())?;
 
-        Ok(JavaClass::from(res.assign_env(self)))
+        Ok(JavaClass::from_local(
+            res.assign_env(self),
+            JavaType::new(class_name, true),
+        ))
     }
 
     /// Find a class by its java class name
@@ -454,7 +465,7 @@ impl<'a> JavaEnvWrapper<'a> {
             "forName",
             "(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;",
         )?;
-        let java_class_name = JavaString::_try_from(class_name, self)?;
+        let java_class_name = JavaString::_try_from(class_name.clone(), self)?;
         let arg = JavaBoolean::new(true);
 
         let loader = self
@@ -467,14 +478,15 @@ impl<'a> JavaEnvWrapper<'a> {
             .clone()
             .unwrap();
         let class_loader = LocalJavaObject::from_internal(loader.borrow(), self);
-        let cls = GlobalJavaClass::try_from(
+        let cls = GlobalJavaClass::try_from_local(
             for_name
-                .call(vec![
-                    Box::new(&java_class_name),
-                    Box::new(&arg),
-                    Box::new(&class_loader),
+                .call(&[
+                    java_class_name.as_arg(),
+                    arg.as_arg(),
+                    class_loader.as_arg(),
                 ])?
                 .ok_or("Class.forName() returned null".to_string())?,
+            JavaType::new(class_name, true),
         )?;
         Ok(cls)
     }
@@ -485,7 +497,7 @@ impl<'a> JavaEnvWrapper<'a> {
             class.get_static_object_method("getSystemClassLoader", "()Ljava/lang/ClassLoader;")?;
 
         let loader = get_system_class_loader
-            .call(vec![])?
+            .call(&[])?
             .ok_or("ClassLoader.getSystemClassLoader() returned null".to_string())?;
         GlobalJavaObject::try_from(loader)
     }
@@ -594,7 +606,7 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         object: JavaObject<'_>,
         method: &JavaMethod<'_>,
-        args: JavaArgs<'_>,
+        args: JavaArgs,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
         self.call_object_method_with_errors(object, method, args, true)
     }
@@ -626,7 +638,11 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(if obj.is_null() {
                 None
             } else {
-                Some(LocalJavaObject::new(obj, self))
+                Some(LocalJavaObject::new(
+                    obj,
+                    self,
+                    method.get_signature().get_return_type().clone(),
+                ))
             })
         }
     }
@@ -657,7 +673,12 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(if obj.is_null() {
                 None
             } else {
-                Some(LocalJavaObject::new(obj, self))
+                //println!("{}", method.get_signature().get_return_type());
+                Some(LocalJavaObject::new(
+                    obj,
+                    self,
+                    method.get_signature().get_return_type().clone(),
+                ))
             })
         }
     }
@@ -803,7 +824,11 @@ impl<'a> JavaEnvWrapper<'a> {
             } else if res.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(JavaObject::from(LocalJavaObject::new(res, self))))
+                Ok(Some(JavaObject::from(LocalJavaObject::new(
+                    res,
+                    self,
+                    field.get_signature().clone(),
+                ))))
             }
         }
     }
@@ -845,7 +870,11 @@ impl<'a> JavaEnvWrapper<'a> {
             } else if res.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(JavaObject::from(LocalJavaObject::new(res, self))))
+                Ok(Some(JavaObject::from(LocalJavaObject::new(
+                    res,
+                    self,
+                    field.get_signature().clone(),
+                ))))
             }
         }
     }
@@ -1004,7 +1033,17 @@ impl<'a> JavaEnvWrapper<'a> {
             if obj.is_null() {
                 Ok(None)
             } else {
-                Ok(Some(LocalJavaObject::new(obj, self)))
+                Ok(Some(LocalJavaObject::new(
+                    obj,
+                    self,
+                    array
+                        .get_signature()
+                        .inner()
+                        .ok_or("Array signature is not an array".to_string())?
+                        .lock()
+                        .unwrap()
+                        .clone(),
+                )))
             }
         }
     }
@@ -1072,7 +1111,11 @@ impl<'a> JavaEnvWrapper<'a> {
                 )?);
             }
 
-            Ok(JavaObjectArray::from(LocalJavaObject::new(arr, self)))
+            Ok(JavaObjectArray::from(LocalJavaObject::new(
+                arr,
+                self,
+                JavaType::array(class.get_signature().clone()),
+            )))
         }
     }
 
@@ -1085,7 +1128,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewShortArray,
         SetShortArrayRegion,
         GetShortArrayElements,
-        ReleaseShortArrayElements
+        ReleaseShortArrayElements,
+        "short[]"
     );
     define_array_methods!(
         create_int_array,
@@ -1096,7 +1140,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewIntArray,
         SetIntArrayRegion,
         GetIntArrayElements,
-        ReleaseIntArrayElements
+        ReleaseIntArrayElements,
+        "int[]"
     );
     define_array_methods!(
         create_long_array,
@@ -1107,7 +1152,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewLongArray,
         SetLongArrayRegion,
         GetLongArrayElements,
-        ReleaseLongArrayElements
+        ReleaseLongArrayElements,
+        "long[]"
     );
     define_array_methods!(
         create_float_array,
@@ -1118,7 +1164,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewFloatArray,
         SetFloatArrayRegion,
         GetFloatArrayElements,
-        ReleaseFloatArrayElements
+        ReleaseFloatArrayElements,
+        "float[]"
     );
     define_array_methods!(
         create_double_array,
@@ -1129,7 +1176,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewDoubleArray,
         SetDoubleArrayRegion,
         GetDoubleArrayElements,
-        ReleaseDoubleArrayElements
+        ReleaseDoubleArrayElements,
+        "double[]"
     );
     define_array_methods!(
         create_boolean_array,
@@ -1140,7 +1188,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewBooleanArray,
         SetBooleanArrayRegion,
         GetBooleanArrayElements,
-        ReleaseBooleanArrayElements
+        ReleaseBooleanArrayElements,
+        "boolean[]"
     );
     define_array_methods!(
         create_byte_array,
@@ -1151,7 +1200,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewByteArray,
         SetByteArrayRegion,
         GetByteArrayElements,
-        ReleaseByteArrayElements
+        ReleaseByteArrayElements,
+        "byte[]"
     );
     define_array_methods!(
         create_char_array,
@@ -1162,7 +1212,8 @@ impl<'a> JavaEnvWrapper<'a> {
         NewCharArray,
         SetCharArrayRegion,
         GetCharArrayElements,
-        ReleaseCharArrayElements
+        ReleaseCharArrayElements,
+        "char[]"
     );
 
     pub unsafe fn get_string_utf_chars(&self, string: sys::jstring) -> ResultType<String> {
@@ -1240,7 +1291,11 @@ impl<'a> JavaEnvWrapper<'a> {
         if self.is_err() || res == ptr::null_mut() {
             Err(self.get_last_error(file!(), line!(), true, "NewObjectA failed")?)
         } else {
-            Ok(LocalJavaObject::new(res, self))
+            Ok(LocalJavaObject::new(
+                res,
+                self,
+                constructor.get_class().get_signature().clone(),
+            ))
         }
     }
 
@@ -1285,13 +1340,13 @@ impl<'a> JavaEnvWrapper<'a> {
         let mut urls = self.create_object_array(&url_class, paths.len() as i32)?;
         for i in 0..paths.len() {
             let java_path = self.string_to_java_string(paths.get(i).unwrap().clone())?;
-            let file = self.new_instance(&file_constructor, vec![Box::new(&java_path)])?;
+            let file = self.new_instance(&file_constructor, &[java_path.as_arg()])?;
 
             let uri = to_uri
-                .call(JavaObject::from(file), vec![])?
+                .call(JavaObject::from(file), &[])?
                 .ok_or("File.toURI returned null".to_string())?;
             let url = to_url
-                .call(JavaObject::from(uri), vec![])?
+                .call(JavaObject::from(uri), &[])?
                 .ok_or("URI.toURL returned null".to_string())?;
 
             urls.set(i as i32, Some(JavaObject::from(url)))?;
@@ -1310,7 +1365,7 @@ impl<'a> JavaEnvWrapper<'a> {
 
         let class_loader = self.new_instance(
             &class_loader_constructor,
-            vec![Box::new(&urls), Box::new(&old_class_loader)],
+            &[urls.as_arg(), old_class_loader.as_arg()],
         )?;
 
         let res = GlobalJavaObject::try_from(class_loader)?;

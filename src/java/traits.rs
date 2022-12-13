@@ -18,7 +18,7 @@ pub trait ToJavaValue<'a> {
 }
 
 pub trait GetSignature {
-    fn get_signature(&self) -> ResultType<JavaType>;
+    fn get_signature(&self) -> &JavaType;
 }
 
 pub trait IsInstanceOf {

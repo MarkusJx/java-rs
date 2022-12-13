@@ -15,8 +15,8 @@ fn local_class_by_name() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
-    let string = JavaString::from(str);
+    let str = value_of.call(&[Box::new(&int)]).unwrap().unwrap();
+    let string = JavaString::try_from(str).unwrap();
 
     assert_eq!(string.to_string().unwrap(), "1234");
 }
@@ -34,8 +34,8 @@ fn local_to_global_class() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
-    let string = JavaString::from(str);
+    let str = value_of.call(&[Box::new(&int)]).unwrap().unwrap();
+    let string = JavaString::try_from(str).unwrap();
 
     assert_eq!(string.to_string().unwrap(), "1234");
 }
@@ -51,8 +51,8 @@ fn global_class_by_name() {
         .unwrap();
     let int = JavaInt::new(1234);
 
-    let str = value_of.call(vec![Box::new(&int)]).unwrap().unwrap();
-    let string = JavaString::from(str);
+    let str = value_of.call(&[Box::new(&int)]).unwrap().unwrap();
+    let string = JavaString::try_from(str).unwrap();
 
     assert_eq!(string.to_string().unwrap(), "1234");
 }
@@ -60,7 +60,7 @@ fn global_class_by_name() {
 #[test]
 fn create_global_object() {
     let env = get_vm().attach_thread().unwrap();
-    let str = JavaString::try_from("test".to_string(), &env).unwrap();
+    let str = JavaString::from_string("test".to_string(), &env).unwrap();
     let global = GlobalJavaObject::try_from(str).unwrap();
 
     let local = JavaString::from_global(&global, &env);
@@ -70,7 +70,7 @@ fn create_global_object() {
 #[test]
 fn clone_global_object() {
     let env = get_vm().attach_thread().unwrap();
-    let str = JavaString::try_from("test".to_string(), &env).unwrap();
+    let str = JavaString::from_string("test".to_string(), &env).unwrap();
     let global = GlobalJavaObject::try_from(str).unwrap();
     let clone = global.clone();
 
@@ -81,8 +81,8 @@ fn clone_global_object() {
 #[test]
 fn get_signature() {
     let env = get_vm().attach_thread().unwrap();
-    let str = JavaString::try_from("test".to_string(), &env).unwrap();
+    let str = JavaString::from_string("test".to_string(), &env).unwrap();
 
-    let signature = str.to_object().get_signature().unwrap();
+    let signature = str.to_object().get_signature();
     assert_eq!(signature.to_string(), "java.lang.String");
 }

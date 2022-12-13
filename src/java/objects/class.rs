@@ -13,15 +13,22 @@ use crate::java::objects::method::{
 use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
 use crate::java::traits::GetRaw;
 use crate::java::util::util::ResultType;
+use crate::traits::GetSignature;
 use crate::{assert_non_null, define_get_method_method, sys};
 use std::error::Error;
 
-pub struct JavaClass<'a>(LocalJavaObject<'a>);
+pub struct JavaClass<'a> {
+    object: LocalJavaObject<'a>,
+    signature: JavaType,
+}
 
 impl<'a> JavaClass<'a> {
-    pub fn new(object: sys::jclass, env: &'a JavaEnvWrapper<'a>) -> Self {
+    pub fn new(object: sys::jclass, env: &'a JavaEnvWrapper<'a>, signature: JavaType) -> Self {
         assert_non_null!(object);
-        Self(LocalJavaObject::new(object, env))
+        Self {
+            object: LocalJavaObject::new(object, env, JavaType::object()),
+            signature,
+        }
     }
 
     pub fn by_name(name: &str, env: &'a JavaEnv<'a>) -> ResultType<Self> {
@@ -41,7 +48,7 @@ impl<'a> JavaClass<'a> {
     }
 
     pub(in crate::java) fn env(&'a self) -> &'a JavaEnvWrapper<'a> {
-        self.0.env()
+        self.object.env()
     }
 
     define_get_method_method!(get_int_method, get_method_id, JavaIntMethod);
@@ -101,14 +108,14 @@ impl<'a> JavaClass<'a> {
         signature: &str,
         resolve_errors: bool,
     ) -> ResultType<JavaObjectMethod<'a>> {
-        let method = self.0.env().get_method_id_with_errors(
+        let method = self.object.env().get_method_id_with_errors(
             &self,
             method_name,
             signature,
             resolve_errors,
         )?;
 
-        Ok(JavaObjectMethod::new(method))
+        JavaObjectMethod::new(method)
     }
 
     pub fn get_static_object_method(
@@ -117,11 +124,11 @@ impl<'a> JavaClass<'a> {
         signature: &str,
     ) -> ResultType<StaticJavaObjectMethod<'a>> {
         let method = self
-            .0
+            .object
             .env()
             .get_static_method_id(&self, method_name, signature)?;
 
-        Ok(StaticJavaObjectMethod::new(method))
+        StaticJavaObjectMethod::new(method)
     }
 
     pub fn get_static_boolean_method(
@@ -130,11 +137,11 @@ impl<'a> JavaClass<'a> {
         signature: &str,
     ) -> ResultType<StaticJavaBooleanMethod<'a>> {
         let method = self
-            .0
+            .object
             .env()
             .get_static_method_id(&self, method_name, signature)?;
 
-        Ok(StaticJavaBooleanMethod::new(method))
+        StaticJavaBooleanMethod::new(method)
     }
 
     pub fn get_constructor(&self, signature: &str) -> ResultType<JavaConstructor> {
@@ -147,52 +154,74 @@ impl<'a> JavaClass<'a> {
         signature: JavaType,
         is_static: bool,
     ) -> ResultType<JavaField<'a>> {
-        self.0.env().get_field_id(&self, name, signature, is_static)
+        self.object
+            .env()
+            .get_field_id(&self, name, signature, is_static)
     }
 
     pub fn from_global(object: &'a GlobalJavaClass, env: &'a JavaEnv<'a>) -> Self {
-        Self(LocalJavaObject::from(&object.0, env))
+        Self {
+            object: LocalJavaObject::from(&object.object, env),
+            signature: object.get_signature().clone(),
+        }
     }
 
     pub fn to_object(&'a self) -> &'a LocalJavaObject<'a> {
-        &self.0
+        &self.object
     }
 
     pub fn is_assignable_from(&self, other: &JavaClass) -> ResultType<bool> {
-        unsafe { self.0.env().is_assignable_from(other.class(), self.class()) }
+        unsafe {
+            self.object
+                .env()
+                .is_assignable_from(other.class(), self.class())
+        }
     }
 
     pub(in crate::java) unsafe fn class(&self) -> sys::jclass {
-        self.0.get_raw()
+        self.object.get_raw()
+    }
+
+    pub fn from_local(object: LocalJavaObject<'a>, signature: JavaType) -> Self {
+        Self { object, signature }
     }
 }
 
-impl<'a> From<LocalJavaObject<'a>> for JavaClass<'a> {
-    fn from(object: LocalJavaObject<'a>) -> Self {
-        Self(object)
+impl GetSignature for JavaClass<'_> {
+    fn get_signature(&self) -> &JavaType {
+        &self.signature
     }
 }
 
 #[derive(Clone)]
-pub struct GlobalJavaClass(GlobalJavaObject);
+pub struct GlobalJavaClass {
+    object: GlobalJavaObject,
+    signature: JavaType,
+}
 
 impl GlobalJavaClass {
     pub fn by_name(name: &str, env: &JavaEnv<'_>) -> ResultType<Self> {
         env.find_global_class_by_java_name(name.replace('/', "."))
     }
 
-    pub fn to_object(self) -> GlobalJavaObject {
-        self.0
+    pub fn into_object(self) -> GlobalJavaObject {
+        self.object
     }
 
     pub(in crate::java) unsafe fn class(&self) -> sys::jclass {
-        self.0.get_raw()
+        self.object.get_raw()
     }
-}
 
-impl From<GlobalJavaObject> for GlobalJavaClass {
-    fn from(object: GlobalJavaObject) -> Self {
-        Self(object)
+    pub fn from_global(object: GlobalJavaObject, signature: JavaType) -> Self {
+        Self { object, signature }
+    }
+
+    pub fn try_from_local(object: LocalJavaObject<'_>, signature: JavaType) -> ResultType<Self> {
+        let global = GlobalJavaObject::try_from(object)?;
+        Ok(Self {
+            object: global,
+            signature,
+        })
     }
 }
 
@@ -200,16 +229,16 @@ impl TryFrom<JavaClass<'_>> for GlobalJavaClass {
     type Error = Box<dyn Error>;
 
     fn try_from(class: JavaClass) -> ResultType<Self> {
-        let global = GlobalJavaObject::try_from(class.0)?;
-        Ok(Self(global))
+        let global = GlobalJavaObject::try_from(class.object)?;
+        Ok(Self {
+            object: global,
+            signature: class.signature,
+        })
     }
 }
 
-impl<'a> TryFrom<LocalJavaObject<'a>> for GlobalJavaClass {
-    type Error = Box<dyn Error>;
-
-    fn try_from(object: LocalJavaObject<'a>) -> ResultType<Self> {
-        let global = GlobalJavaObject::try_from(object)?;
-        Ok(Self(global))
+impl GetSignature for GlobalJavaClass {
+    fn get_signature(&self) -> &JavaType {
+        &self.signature
     }
 }

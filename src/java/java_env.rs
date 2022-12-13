@@ -7,6 +7,7 @@ use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
 use crate::java::traits::{GetRaw, IsInstanceOf};
 use crate::java::util::util::{jni_version_to_string, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
+use crate::objects::args::AsJavaArg;
 use crate::{define_object_to_val_method, sys};
 use std::sync::{Arc, Mutex};
 
@@ -198,11 +199,11 @@ impl<'a> JavaEnv<'a> {
             thread_class.get_void_method("setContextClassLoader", "(Ljava/lang/ClassLoader;)V")?;
 
         let current_thread = get_current_thread
-            .call(vec![])?
+            .call(&[])?
             .ok_or("Thread.currentThread() returned null".to_string())?;
         set_context_classloader.call(
             JavaObject::from(current_thread),
-            vec![Box::new(&self.get_class_loader()?)],
+            &[self.get_class_loader()?.as_arg()],
         )
     }
 

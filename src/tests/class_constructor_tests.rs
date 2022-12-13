@@ -2,6 +2,7 @@ use crate::java::class_constructor::ClassConstructor;
 use crate::java::java_type::Type;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::string::JavaString;
+use crate::objects::args::AsJavaArg;
 use crate::tests::common::get_vm;
 
 #[test]
@@ -25,10 +26,10 @@ fn new_instance() {
         })
         .unwrap();
 
-    let str = JavaString::try_from("test".to_string(), &env).unwrap();
-    let instance = default.new_instance(vec![Box::new(&str)]).unwrap();
+    let str = JavaString::from_string("test".to_string(), &env).unwrap();
+    let instance = default.new_instance(&[str.as_arg()]).unwrap();
 
-    let local = JavaString::from(LocalJavaObject::from(&instance, &env));
+    let local = JavaString::try_from(LocalJavaObject::from(&instance, &env)).unwrap();
 
     assert_eq!(local.to_string().unwrap(), "test");
 }

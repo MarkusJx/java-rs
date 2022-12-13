@@ -3,6 +3,7 @@ use crate::java::jni_error::JNIError;
 use crate::java::objects::class::JavaClass;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::value::JavaInt;
+use crate::objects::args::AsJavaArg;
 use crate::sys;
 use std::error::Error;
 
@@ -69,7 +70,7 @@ pub fn jni_type_to_java_type(to_convert: &String) -> String {
     } else if !to_convert.is_empty() && to_convert.chars().nth(0).unwrap() == 'L' {
         to_convert.clone()[1..(to_convert.len() - 1)].replace('/', ".")
     } else {
-        to_convert.clone()
+        to_convert.clone().replace('/', ".")
     };
 }
 
@@ -92,9 +93,9 @@ pub fn method_is_public(
     let is_public = modifier.get_static_boolean_method("isPublic", "(I)Z")?;
     let is_static = modifier.get_static_boolean_method("isStatic", "(I)Z")?;
 
-    let modifiers = get_modifiers.call(vec![])?;
-    let is_public = is_public.call(vec![Box::new(&JavaInt::new(modifiers))])?;
-    let is_static = is_static.call(vec![Box::new(&JavaInt::new(modifiers))])?;
+    let modifiers = get_modifiers.call(&[])?;
+    let is_public = is_public.call(&[JavaInt::new(modifiers).as_arg()])?;
+    let is_static = is_static.call(&[JavaInt::new(modifiers).as_arg()])?;
 
     Ok(is_public && is_static == only_static)
 }
@@ -107,6 +108,6 @@ pub fn field_is_final(env: &JavaEnv, field: &LocalJavaObject) -> ResultType<bool
     let modifier = JavaClass::by_name("java/lang/reflect/Modifier", env)?;
 
     let is_final = modifier.get_static_boolean_method("isFinal", "(I)Z")?;
-    let modifiers = get_modifiers.call(vec![])?;
-    is_final.call(vec![Box::new(&JavaInt::new(modifiers))])
+    let modifiers = get_modifiers.call(&[])?;
+    is_final.call(&[JavaInt::new(modifiers).as_arg()])
 }
