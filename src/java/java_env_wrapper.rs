@@ -6,7 +6,7 @@ use crate::java::java_field::{
     StaticJavaIntField, StaticJavaLongField, StaticJavaObjectField, StaticJavaShortField,
 };
 use crate::java::java_type::JavaType;
-use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::java_vm::JavaVM;
 use crate::java::jni_error::JNIError;
 use crate::java::objects::args::JavaArgs;
 use crate::java::objects::array::{
@@ -46,36 +46,28 @@ pub struct JavaEnvWrapper<'a> {
     pub env: *mut sys::JNIEnv,
     pub methods: sys::JNINativeInterface_,
     thread_id: ThreadId,
-    options: Option<InternalJavaOptions>,
     _marker: std::marker::PhantomData<&'a *mut sys::JNIEnv>,
 }
 
 impl<'a> JavaEnvWrapper<'a> {
     /// You should probably not use this.
-    pub(crate) fn new(
-        jvm: Arc<Mutex<JavaVMPtr>>,
-        options: InternalJavaOptions,
-        env: *mut sys::JNIEnv,
-    ) -> Self {
+    pub(crate) fn new(jvm: Arc<Mutex<JavaVMPtr>>, env: *mut sys::JNIEnv) -> Self {
         assert_non_null!(env, "JavaEnvWrapper::new: env is null");
-        jvm.lock().unwrap().increase_ref_count();
         Self {
             jvm: Some(jvm),
             env,
             methods: unsafe { *(*env) },
-            options: Some(options),
             thread_id: std::thread::current().id(),
             _marker: std::marker::PhantomData,
         }
     }
 
-    pub unsafe fn from_raw(env: *mut sys::JNIEnv, options: InternalJavaOptions) -> Self {
+    pub unsafe fn from_raw(env: *mut sys::JNIEnv) -> Self {
         assert_non_null!(env, "JavaEnvWrapper::from_raw: env is null");
         let mut res = Self {
             jvm: None,
             env,
             methods: *(*env),
-            options: Some(options),
             thread_id: std::thread::current().id(),
             _marker: std::marker::PhantomData,
         };
@@ -91,8 +83,7 @@ impl<'a> JavaEnvWrapper<'a> {
         if res != sys::JNI_OK as _ || vm.is_null() {
             Err(format!("Failed to get JavaVM: {}", jni_error_to_string(res)).into())
         } else {
-            let options = self.options.ok_or("The options were unset".to_string())?;
-            Ok(Arc::new(Mutex::new(JavaVMPtr::from_raw(vm, options))))
+            Ok(Arc::new(Mutex::new(JavaVMPtr::from_raw(vm))))
         }
     }
 
@@ -377,9 +368,6 @@ impl<'a> JavaEnvWrapper<'a> {
                     .as_ref()
                     .ok_or("The jvm was unset".to_string())?
                     .clone(),
-                self.options
-                    .ok_or("The options were unset".to_string())?
-                    .clone(),
                 signature,
             ))
         }
@@ -543,6 +531,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 JavaType::from_method_return_type(signature)?,
                 false,
                 Signature::from_jni(signature)?,
+                method_name.to_string(),
             ))
         }
     }
@@ -578,6 +567,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 JavaType::from_method_return_type(signature)?,
                 true,
                 Signature::from_jni(signature)?,
+                method_name.to_string(),
             ))
         }
     }
@@ -1254,7 +1244,6 @@ impl<'a> JavaEnvWrapper<'a> {
                 .as_ref()
                 .ok_or("jvm was unset".to_string())?
                 .clone(),
-            self.options.ok_or("The options were unset".to_string())?,
         ))
     }
 
@@ -1390,10 +1379,6 @@ impl<'a> JavaEnvWrapper<'a> {
             .ok_or("The jvm was unset".to_string())?
             .clone())
     }
-
-    pub fn get_options(&self) -> ResultType<InternalJavaOptions> {
-        self.options.ok_or("The options were unset".into())
-    }
 }
 
 impl<'a> Drop for JavaEnvWrapper<'a> {
@@ -1405,12 +1390,5 @@ impl<'a> Drop for JavaEnvWrapper<'a> {
         if std::thread::current().id() != self.thread_id {
             panic!("JavaEnvWrapper was dropped from a different thread than it was created on, {:?} vs. {:?}", std::thread::current().id(), self.thread_id);
         }
-
-        self.jvm
-            .as_ref()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .decrease_ref_count();
     }
 }

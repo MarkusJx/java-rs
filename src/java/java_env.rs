@@ -1,6 +1,6 @@
 use crate::java::java_env_wrapper::JavaEnvWrapper;
 use crate::java::java_type::JavaType;
-use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::java_vm::JavaVM;
 use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::object::{GlobalJavaObject, LocalJavaObject};
@@ -23,17 +23,13 @@ pub struct JavaEnv<'a>(JavaEnvWrapper<'a>);
 
 impl<'a> JavaEnv<'a> {
     /// You should probably not use this.
-    pub(in crate::java) fn new(
-        jvm: Arc<Mutex<JavaVMPtr>>,
-        options: InternalJavaOptions,
-        env: *mut sys::JNIEnv,
-    ) -> Self {
-        Self(JavaEnvWrapper::new(jvm, options, env))
+    pub(in crate::java) fn new(jvm: Arc<Mutex<JavaVMPtr>>, env: *mut sys::JNIEnv) -> Self {
+        Self(JavaEnvWrapper::new(jvm, env))
     }
 
-    pub unsafe fn from_raw(env: *mut sys::JNIEnv, options: InternalJavaOptions) -> Self {
+    pub unsafe fn from_raw(env: *mut sys::JNIEnv) -> Self {
         assert_ne!(env, std::ptr::null_mut());
-        Self(JavaEnvWrapper::from_raw(env, options))
+        Self(JavaEnvWrapper::from_raw(env))
     }
 
     pub fn get_version(&self) -> ResultType<String> {

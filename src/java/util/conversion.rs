@@ -9,6 +9,7 @@ use crate::java::objects::method::GlobalJavaMethod;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::string::JavaString;
 use crate::java::util::util::ResultType;
+use crate::java_type::Type;
 use crate::signature::Signature;
 
 pub fn parameter_to_type(env: &JavaEnv, parameter: &LocalJavaObject) -> ResultType<JavaType> {
@@ -104,11 +105,31 @@ pub fn get_method_from_signature(
 
     let class = JavaClass::by_java_name(class_name.replace('/', "."), env)?;
     let method = if is_static {
-        class
-            .get_static_object_method(name, signature.as_str())?
-            .into()
+        match return_type.type_enum() {
+            Type::Void => class.get_static_void_method(name, &signature)?.into(),
+            Type::Boolean => class.get_static_boolean_method(name, &signature)?.into(),
+            Type::Byte => class.get_static_byte_method(name, &signature)?.into(),
+            Type::Character => class.get_static_char_method(name, &signature)?.into(),
+            Type::Short => class.get_static_short_method(name, &signature)?.into(),
+            Type::Integer => class.get_static_int_method(name, &signature)?.into(),
+            Type::Long => class.get_static_long_method(name, &signature)?.into(),
+            Type::Float => class.get_static_float_method(name, &signature)?.into(),
+            Type::Double => class.get_static_double_method(name, &signature)?.into(),
+            _ => class.get_static_object_method(name, &signature)?.into(),
+        }
     } else {
-        class.get_object_method(name, signature.as_str())?.into()
+        match return_type.type_enum() {
+            Type::Void => class.get_void_method(name, &signature)?.into(),
+            Type::Boolean => class.get_boolean_method(name, &signature)?.into(),
+            Type::Byte => class.get_byte_method(name, &signature)?.into(),
+            Type::Character => class.get_char_method(name, &signature)?.into(),
+            Type::Short => class.get_short_method(name, &signature)?.into(),
+            Type::Integer => class.get_int_method(name, &signature)?.into(),
+            Type::Long => class.get_long_method(name, &signature)?.into(),
+            Type::Float => class.get_float_method(name, &signature)?.into(),
+            Type::Double => class.get_double_method(name, &signature)?.into(),
+            _ => class.get_object_method(name, &signature)?.into(),
+        }
     };
 
     let global_class = GlobalJavaClass::by_name(class_name.as_str(), env)?;

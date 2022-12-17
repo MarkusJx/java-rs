@@ -17,7 +17,6 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct JavaVM {
     ptr: Arc<Mutex<JavaVMPtr>>,
-    options: InternalJavaOptions,
 }
 
 #[allow(non_snake_case, dead_code)]
@@ -32,7 +31,6 @@ impl JavaVM {
         version: &String,
         library_path: Option<String>,
         args: &Vec<String>,
-        options: InternalJavaOptions,
     ) -> ResultType<Self> {
         if !library_loaded() {
             let lib_path = match library_path {
@@ -90,24 +88,17 @@ impl JavaVM {
             return Err(JNIError::new("Failed to create JavaVM".to_string()).into());
         }
 
-        let ptr = Arc::new(Mutex::new(JavaVMPtr::new(ptr, options)));
-        let thread = JavaVM::_attach_thread(&ptr, &options)?;
+        let ptr = Arc::new(Mutex::new(JavaVMPtr::new(ptr)));
+        let thread = JavaVM::_attach_thread(&ptr)?;
         ptr.lock()
             .unwrap()
             .set_class_loader(thread.get_system_class_loader()?);
 
-        Ok(Self { ptr, options })
+        Ok(Self { ptr })
     }
 
-    pub(in crate::java) fn from_existing(
-        ptr: Arc<Mutex<JavaVMPtr>>,
-        options: InternalJavaOptions,
-    ) -> Self {
-        Self { ptr, options }
-    }
-
-    pub fn options(&self) -> InternalJavaOptions {
-        self.options
+    pub(in crate::java) fn from_existing(ptr: Arc<Mutex<JavaVMPtr>>) -> Self {
+        Self { ptr }
     }
 
     pub fn get_version(&self) -> ResultType<String> {
@@ -115,10 +106,7 @@ impl JavaVM {
         Ok(env.get_version()?)
     }
 
-    fn _attach_thread<'a>(
-        ptr: &Arc<Mutex<JavaVMPtr>>,
-        options: &InternalJavaOptions,
-    ) -> ResultType<JavaEnv<'a>> {
+    fn _attach_thread<'a>(ptr: &Arc<Mutex<JavaVMPtr>>) -> ResultType<JavaEnv<'a>> {
         let mut env: *mut sys::JNIEnv = std::ptr::null_mut();
         let jvm_ptr = ptr.lock().map_err(|e| JNIError::new(e.to_string()))?;
 
@@ -131,16 +119,8 @@ impl JavaVM {
         };
 
         if create_result == sys::JNI_EDETACHED {
-            let method = unsafe {
-                if options.use_daemon_threads {
-                    jvm_ptr.methods().AttachCurrentThreadAsDaemon.unwrap()
-                } else {
-                    jvm_ptr.methods().AttachCurrentThread.unwrap()
-                }
-            };
-
             create_result = unsafe {
-                method(
+                jvm_ptr.methods().AttachCurrentThreadAsDaemon.unwrap()(
                     jvm_ptr.vm(),
                     &mut env as *mut *mut sys::JNIEnv as *mut *mut c_void,
                     std::ptr::null_mut(),
@@ -158,7 +138,7 @@ impl JavaVM {
                 return Err(JNIError::new("Failed to attach thread".to_string()).into());
             }
 
-            let j_env = JavaEnv::new(ptr.clone(), options.clone(), env);
+            let j_env = JavaEnv::new(ptr.clone(), env);
             j_env.thread_set_context_classloader()?;
             Ok(j_env)
         } else if create_result == sys::JNI_OK as i32 {
@@ -167,7 +147,7 @@ impl JavaVM {
             }
 
             drop(jvm_ptr);
-            Ok(JavaEnv::new(ptr.clone(), options.clone(), env))
+            Ok(JavaEnv::new(ptr.clone(), env))
         } else {
             Err(JNIError::new(format!(
                 "Failed to attach thread: {}",
@@ -178,21 +158,8 @@ impl JavaVM {
     }
 
     pub fn attach_thread<'a>(&self) -> ResultType<JavaEnv<'a>> {
-        JavaVM::_attach_thread(&self.ptr, &self.options)
+        JavaVM::_attach_thread(&self.ptr)
     }
 }
 
 unsafe impl Send for JavaVM {}
-
-#[derive(Copy, Clone)]
-pub struct InternalJavaOptions {
-    pub use_daemon_threads: bool,
-}
-
-impl Default for InternalJavaOptions {
-    fn default() -> Self {
-        Self {
-            use_daemon_threads: false,
-        }
-    }
-}

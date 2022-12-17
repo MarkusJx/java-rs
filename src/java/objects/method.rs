@@ -15,6 +15,7 @@ pub struct JavaMethod<'a> {
     return_type: JavaType,
     is_static: bool,
     signature: Signature,
+    name: String,
 }
 
 impl<'a> JavaMethod<'a> {
@@ -24,6 +25,7 @@ impl<'a> JavaMethod<'a> {
         return_type: JavaType,
         is_static: bool,
         signature: Signature,
+        name: String,
     ) -> Self {
         Self {
             method,
@@ -31,11 +33,16 @@ impl<'a> JavaMethod<'a> {
             return_type,
             is_static,
             signature,
+            name,
         }
     }
 
     pub fn get_signature(&self) -> &Signature {
         &self.signature
+    }
+
+    pub fn get_java_signature(&self) -> String {
+        self.signature.as_method_signature(&self.name)
     }
 
     pub(in crate::java) unsafe fn id(&'a self) -> sys::jmethodID {
@@ -49,6 +56,7 @@ pub struct GlobalJavaMethod {
     return_type: JavaType,
     is_static: bool,
     signature: Signature,
+    name: String,
 }
 
 impl GlobalJavaMethod {
@@ -59,6 +67,7 @@ impl GlobalJavaMethod {
             return_type: method.return_type,
             is_static: method.is_static,
             signature: method.signature,
+            name: method.name,
         }
     }
 
@@ -67,6 +76,10 @@ impl GlobalJavaMethod {
         'a: 'b,
     {
         JavaClass::from_global(&self.class, env)
+    }
+
+    pub fn get_java_signature(&self) -> String {
+        self.signature.as_method_signature(&self.name)
     }
 }
 
@@ -78,6 +91,7 @@ impl Clone for GlobalJavaMethod {
             return_type: self.return_type.clone(),
             is_static: self.is_static,
             signature: self.signature.clone(),
+            name: self.name.clone(),
         }
     }
 }

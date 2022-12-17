@@ -1,7 +1,7 @@
 use crate::java::java_env::JavaEnv;
 use crate::java::java_env_wrapper::JavaEnvWrapper;
 use crate::java::java_type::JavaType;
-use crate::java::java_vm::{InternalJavaOptions, JavaVM};
+use crate::java::java_vm::JavaVM;
 use crate::java::objects::args::JavaArg;
 use crate::java::objects::class::JavaClass;
 use crate::java::objects::java_object::JavaObject;
@@ -116,14 +116,13 @@ impl<'a> LocalJavaObject<'a> {
         /// This specific method creates a new `java.lang.Integer` from ``i32``.
         /// # Example
         /// ```rust
-        /// use java_rs::java_vm::{InternalJavaOptions, JavaVM};
+        /// use java_rs::java_vm::{JavaVM};
         /// use java_rs::objects::object::LocalJavaObject;
         ///
         /// let env = JavaVM::new(
         ///     &"1.8".to_string(),
         ///     None,
         ///     &vec![],
-        ///     InternalJavaOptions::default(),
         /// )
         /// .unwrap()
         /// .attach_thread()
@@ -228,28 +227,22 @@ impl<'a> Drop for LocalJavaObject<'a> {
 struct GlobalJavaObjectInternal {
     object: AtomicPtr<sys::_jobject>,
     jvm: Arc<Mutex<JavaVMPtr>>,
-    options: InternalJavaOptions,
     free: bool,
 }
 
 impl GlobalJavaObjectInternal {
-    pub fn new(
-        object: sys::jobject,
-        jvm: Arc<Mutex<JavaVMPtr>>,
-        options: InternalJavaOptions,
-    ) -> Self {
+    pub fn new(object: sys::jobject, jvm: Arc<Mutex<JavaVMPtr>>) -> Self {
         assert_non_null!(object, "GlobalJavaObject::new: object is null");
 
         Self {
             object: AtomicPtr::new(object),
             jvm,
-            options,
             free: true,
         }
     }
 
     fn get_vm(&self) -> JavaVM {
-        JavaVM::from_existing(self.jvm.clone(), self.options)
+        JavaVM::from_existing(self.jvm.clone())
     }
 
     fn disable_free(&mut self) {
@@ -260,7 +253,7 @@ impl GlobalJavaObjectInternal {
 impl Drop for GlobalJavaObjectInternal {
     fn drop(&mut self) {
         if self.free {
-            let vm = JavaVM::from_existing(self.jvm.clone(), self.options);
+            let vm = JavaVM::from_existing(self.jvm.clone());
             let env = vm.attach_thread();
 
             if let Ok(env) = env {
@@ -277,18 +270,11 @@ pub struct GlobalJavaObject {
 }
 
 impl GlobalJavaObject {
-    pub fn new(
-        object: sys::jobject,
-        jvm: Arc<Mutex<JavaVMPtr>>,
-        options: InternalJavaOptions,
-        signature: JavaType,
-    ) -> Self {
+    pub fn new(object: sys::jobject, jvm: Arc<Mutex<JavaVMPtr>>, signature: JavaType) -> Self {
         assert_non_null!(object, "GlobalJavaObject::new: object is null");
 
         Self {
-            object: Arc::new(Mutex::new(GlobalJavaObjectInternal::new(
-                object, jvm, options,
-            ))),
+            object: Arc::new(Mutex::new(GlobalJavaObjectInternal::new(object, jvm))),
             signature,
         }
     }

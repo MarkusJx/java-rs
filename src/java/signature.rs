@@ -124,6 +124,19 @@ impl Signature {
 
         true
     }
+
+    pub fn as_method_signature(&self, method_name: &String) -> String {
+        format!(
+            "{} {}({})",
+            self.return_type.to_string(),
+            method_name,
+            self.args
+                .iter()
+                .map(|arg| arg.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
+    }
 }
 
 impl Display for Signature {
