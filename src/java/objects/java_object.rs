@@ -122,7 +122,7 @@ impl<'a> ToJavaValue<'a> for JavaObject<'a> {
 }
 
 impl<'a> GetSignature for JavaObject<'a> {
-    fn get_signature(&self) -> &JavaType {
+    fn get_signature(&self) -> JavaType {
         match self {
             Self::LocalRef(local_object) => local_object.get_signature(),
             Self::Local(local_object) => local_object.get_signature(),

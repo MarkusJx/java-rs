@@ -5,6 +5,7 @@ use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::java_object::JavaObject;
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::util::util::ResultType;
+#[cfg(feature = "type_check")]
 use crate::signature::Signature;
 use crate::{define_java_methods, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -14,7 +15,9 @@ pub struct JavaMethod<'a> {
     class: &'a JavaClass<'a>,
     return_type: JavaType,
     is_static: bool,
+    #[cfg(feature = "type_check")]
     signature: Signature,
+    #[cfg(feature = "type_check")]
     name: String,
 }
 
@@ -24,23 +27,27 @@ impl<'a> JavaMethod<'a> {
         class: &'a JavaClass<'a>,
         return_type: JavaType,
         is_static: bool,
-        signature: Signature,
-        name: String,
+        #[cfg(feature = "type_check")] signature: Signature,
+        #[cfg(feature = "type_check")] name: String,
     ) -> Self {
         Self {
             method,
             class,
             return_type,
             is_static,
+            #[cfg(feature = "type_check")]
             signature,
+            #[cfg(feature = "type_check")]
             name,
         }
     }
 
+    #[cfg(feature = "type_check")]
     pub fn get_signature(&self) -> &Signature {
         &self.signature
     }
 
+    #[cfg(feature = "type_check")]
     pub fn get_java_signature(&self) -> String {
         self.signature.as_method_signature(&self.name)
     }
@@ -55,7 +62,9 @@ pub struct GlobalJavaMethod {
     class: GlobalJavaClass,
     return_type: JavaType,
     is_static: bool,
+    #[cfg(feature = "type_check")]
     signature: Signature,
+    #[cfg(feature = "type_check")]
     name: String,
 }
 
@@ -66,7 +75,9 @@ impl GlobalJavaMethod {
             class,
             return_type: method.return_type,
             is_static: method.is_static,
+            #[cfg(feature = "type_check")]
             signature: method.signature,
+            #[cfg(feature = "type_check")]
             name: method.name,
         }
     }
@@ -78,6 +89,7 @@ impl GlobalJavaMethod {
         JavaClass::from_global(&self.class, env)
     }
 
+    #[cfg(feature = "type_check")]
     pub fn get_java_signature(&self) -> String {
         self.signature.as_method_signature(&self.name)
     }
@@ -90,7 +102,9 @@ impl Clone for GlobalJavaMethod {
             class: self.class.clone(),
             return_type: self.return_type.clone(),
             is_static: self.is_static,
+            #[cfg(feature = "type_check")]
             signature: self.signature.clone(),
+            #[cfg(feature = "type_check")]
             name: self.name.clone(),
         }
     }

@@ -23,7 +23,7 @@ impl JavaArray<'_> {
 }
 
 impl GetSignature for JavaArray<'_> {
-    fn get_signature(&self) -> &JavaType {
+    fn get_signature(&self) -> JavaType {
         self.object.get_signature()
     }
 }
@@ -109,7 +109,7 @@ impl<'a> JavaObjectArray<'a> {
 }
 
 impl GetSignature for JavaObjectArray<'_> {
-    fn get_signature(&self) -> &JavaType {
+    fn get_signature(&self) -> JavaType {
         self.0.get_signature()
     }
 }

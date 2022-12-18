@@ -3,6 +3,7 @@ use crate::java::objects::args::JavaArgs;
 use crate::java::objects::class::{GlobalJavaClass, JavaClass};
 use crate::java::objects::object::LocalJavaObject;
 use crate::java::util::util::ResultType;
+#[cfg(feature = "type_check")]
 use crate::signature::Signature;
 use crate::{assert_non_null, sys};
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -10,6 +11,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 pub struct JavaConstructor<'a> {
     method: sys::jmethodID,
     class: &'a JavaClass<'a>,
+    #[cfg(feature = "type_check")]
     signature: Signature,
 }
 
@@ -17,12 +19,13 @@ impl<'a> JavaConstructor<'a> {
     pub(in crate::java) fn new(
         method: sys::jmethodID,
         class: &'a JavaClass<'a>,
-        signature: Signature,
+        #[cfg(feature = "type_check")] signature: Signature,
     ) -> Self {
         assert_non_null!(method);
         Self {
             method,
             class,
+            #[cfg(feature = "type_check")]
             signature,
         }
     }
@@ -43,6 +46,7 @@ impl<'a> JavaConstructor<'a> {
         self.method
     }
 
+    #[cfg(feature = "type_check")]
     pub fn get_signature(&self) -> &Signature {
         &self.signature
     }
@@ -55,6 +59,7 @@ impl<'a> JavaConstructor<'a> {
         Self {
             method: global.method.load(Ordering::Relaxed),
             class,
+            #[cfg(feature = "type_check")]
             signature: global.signature.clone(),
         }
     }
@@ -63,6 +68,7 @@ impl<'a> JavaConstructor<'a> {
 pub struct GlobalJavaConstructor {
     method: AtomicPtr<sys::_jmethodID>,
     class: GlobalJavaClass,
+    #[cfg(feature = "type_check")]
     signature: Signature,
 }
 
@@ -70,11 +76,12 @@ impl GlobalJavaConstructor {
     pub fn from_local(
         local: JavaConstructor<'_>,
         class: GlobalJavaClass,
-        signature: Signature,
+        #[cfg(feature = "type_check")] signature: Signature,
     ) -> Self {
         Self {
             method: AtomicPtr::new(local.method),
             class,
+            #[cfg(feature = "type_check")]
             signature,
         }
     }
@@ -92,6 +99,7 @@ impl Clone for GlobalJavaConstructor {
         Self {
             method: AtomicPtr::new(self.method.load(Ordering::Relaxed)),
             class: self.class.clone(),
+            #[cfg(feature = "type_check")]
             signature: self.signature.clone(),
         }
     }

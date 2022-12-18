@@ -1,6 +1,7 @@
 use crate::objects::args::AsJavaArg;
 use crate::objects::string::JavaString;
 use crate::objects::value::JavaInt;
+#[cfg(feature = "type_check")]
 use crate::signature::Signature;
 use crate::tests::common::get_vm;
 

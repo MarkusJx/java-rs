@@ -19,14 +19,25 @@ use std::error::Error;
 
 pub struct JavaClass<'a> {
     object: LocalJavaObject<'a>,
+    #[cfg(feature = "type_check")]
     signature: JavaType,
 }
 
 impl<'a> JavaClass<'a> {
-    pub fn new(object: sys::jclass, env: &'a JavaEnvWrapper<'a>, signature: JavaType) -> Self {
+    pub fn new(
+        object: sys::jclass,
+        env: &'a JavaEnvWrapper<'a>,
+        #[cfg(feature = "type_check")] signature: JavaType,
+    ) -> Self {
         assert_non_null!(object);
         Self {
-            object: LocalJavaObject::new(object, env, JavaType::object()),
+            object: LocalJavaObject::new(
+                object,
+                env,
+                #[cfg(feature = "type_check")]
+                JavaType::object(),
+            ),
+            #[cfg(feature = "type_check")]
             signature,
         }
     }
@@ -162,6 +173,7 @@ impl<'a> JavaClass<'a> {
     pub fn from_global(object: &'a GlobalJavaClass, env: &'a JavaEnv<'a>) -> Self {
         Self {
             object: LocalJavaObject::from(&object.object, env),
+            #[cfg(feature = "type_check")]
             signature: object.get_signature().clone(),
         }
     }
@@ -182,20 +194,29 @@ impl<'a> JavaClass<'a> {
         self.object.get_raw()
     }
 
-    pub fn from_local(object: LocalJavaObject<'a>, signature: JavaType) -> Self {
-        Self { object, signature }
+    pub fn from_local(
+        object: LocalJavaObject<'a>,
+        #[cfg(feature = "type_check")] signature: JavaType,
+    ) -> Self {
+        Self {
+            object,
+            #[cfg(feature = "type_check")]
+            signature,
+        }
     }
 }
 
+#[cfg(feature = "type_check")]
 impl GetSignature for JavaClass<'_> {
-    fn get_signature(&self) -> &JavaType {
-        &self.signature
+    fn get_signature(&self) -> JavaType {
+        self.signature.clone()
     }
 }
 
 #[derive(Clone)]
 pub struct GlobalJavaClass {
     object: GlobalJavaObject,
+    #[cfg(feature = "type_check")]
     signature: JavaType,
 }
 
@@ -212,14 +233,25 @@ impl GlobalJavaClass {
         self.object.get_raw()
     }
 
-    pub fn from_global(object: GlobalJavaObject, signature: JavaType) -> Self {
-        Self { object, signature }
+    pub fn from_global(
+        object: GlobalJavaObject,
+        #[cfg(feature = "type_check")] signature: JavaType,
+    ) -> Self {
+        Self {
+            object,
+            #[cfg(feature = "type_check")]
+            signature,
+        }
     }
 
-    pub fn try_from_local(object: LocalJavaObject<'_>, signature: JavaType) -> ResultType<Self> {
+    pub fn try_from_local(
+        object: LocalJavaObject<'_>,
+        #[cfg(feature = "type_check")] signature: JavaType,
+    ) -> ResultType<Self> {
         let global = GlobalJavaObject::try_from(object)?;
         Ok(Self {
             object: global,
+            #[cfg(feature = "type_check")]
             signature,
         })
     }
@@ -232,13 +264,23 @@ impl TryFrom<JavaClass<'_>> for GlobalJavaClass {
         let global = GlobalJavaObject::try_from(class.object)?;
         Ok(Self {
             object: global,
+            #[cfg(feature = "type_check")]
             signature: class.signature,
         })
     }
 }
 
 impl GetSignature for GlobalJavaClass {
-    fn get_signature(&self) -> &JavaType {
-        &self.signature
+    #[cfg(feature = "type_check")]
+    fn get_signature(&self) -> JavaType {
+        self.signature.clone()
+    }
+
+    #[cfg(not(feature = "type_check"))]
+    fn get_signature(&self) -> JavaType {
+        let vm = self.object.get_vm();
+        let env = vm.attach_thread().unwrap();
+
+        env.get_env().get_object_signature(self.into()).unwrap()
     }
 }

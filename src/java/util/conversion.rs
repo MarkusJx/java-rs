@@ -10,6 +10,7 @@ use crate::java::objects::object::LocalJavaObject;
 use crate::java::objects::string::JavaString;
 use crate::java::util::util::ResultType;
 use crate::java_type::Type;
+#[cfg(feature = "type_check")]
 use crate::signature::Signature;
 
 pub fn parameter_to_type(env: &JavaEnv, parameter: &LocalJavaObject) -> ResultType<JavaType> {
@@ -154,9 +155,11 @@ pub fn get_constructor_from_signature(
     let constructor = class.get_constructor(signature.as_str())?;
 
     let global_class = GlobalJavaClass::by_name(class_name.as_str(), env)?;
+
     Ok(GlobalJavaConstructor::from_local(
         constructor,
         global_class,
+        #[cfg(feature = "type_check")]
         Signature::new(JavaType::void(), parameters.clone()),
     ))
 }

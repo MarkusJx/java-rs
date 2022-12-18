@@ -25,6 +25,7 @@ pub struct LocalJavaObject<'a> {
     object: sys::jobject,
     free: bool,
     env: &'a JavaEnvWrapper<'a>,
+    #[cfg(feature = "type_check")]
     signature: JavaType,
     _marker: PhantomData<&'a sys::jobject>,
 }
@@ -33,7 +34,7 @@ impl<'a> LocalJavaObject<'a> {
     pub(in crate::java) fn new(
         object: sys::jobject,
         env: &'a JavaEnvWrapper<'a>,
-        signature: JavaType,
+        #[cfg(feature = "type_check")] signature: JavaType,
     ) -> Self {
         assert_non_null!(object, "LocalJavaObject::new: object is null");
 
@@ -41,6 +42,7 @@ impl<'a> LocalJavaObject<'a> {
             object,
             free: true,
             env,
+            #[cfg(feature = "type_check")]
             signature,
             _marker: PhantomData,
         }
@@ -55,6 +57,7 @@ impl<'a> LocalJavaObject<'a> {
 
         Self {
             object,
+            #[cfg(feature = "type_check")]
             signature: signature.unwrap_or(JavaType::object()),
             free: true,
             env: env.get_env(),
@@ -72,6 +75,7 @@ impl<'a> LocalJavaObject<'a> {
             object: inner.object.load(Ordering::Relaxed),
             free: false,
             env: env.get_env(),
+            #[cfg(feature = "type_check")]
             signature: object.signature.clone(),
             _marker: PhantomData,
         }
@@ -86,6 +90,7 @@ impl<'a> LocalJavaObject<'a> {
             object: inner.object.load(Ordering::Relaxed),
             free: false,
             env,
+            #[cfg(feature = "type_check")]
             signature: object.signature.clone(),
             _marker: PhantomData,
         }
@@ -103,6 +108,7 @@ impl<'a> LocalJavaObject<'a> {
             object: self.object,
             free,
             env,
+            #[cfg(feature = "type_check")]
             signature: self.signature.clone(),
             _marker: PhantomData,
         }
@@ -195,8 +201,16 @@ impl<'a> IsInstanceOf for LocalJavaObject<'a> {
 }
 
 impl<'a> GetSignature for LocalJavaObject<'a> {
-    fn get_signature(&self) -> &JavaType {
-        &self.signature
+    #[cfg(feature = "type_check")]
+    fn get_signature(&self) -> JavaType {
+        self.signature.clone()
+    }
+
+    #[cfg(not(feature = "type_check"))]
+    fn get_signature(&self) -> JavaType {
+        self.env
+            .get_object_signature(JavaObject::from(self))
+            .unwrap()
     }
 }
 
@@ -266,15 +280,21 @@ impl Drop for GlobalJavaObjectInternal {
 #[derive(Clone)]
 pub struct GlobalJavaObject {
     object: Arc<Mutex<GlobalJavaObjectInternal>>,
+    #[cfg(feature = "type_check")]
     signature: JavaType,
 }
 
 impl GlobalJavaObject {
-    pub fn new(object: sys::jobject, jvm: Arc<Mutex<JavaVMPtr>>, signature: JavaType) -> Self {
+    pub fn new(
+        object: sys::jobject,
+        jvm: Arc<Mutex<JavaVMPtr>>,
+        #[cfg(feature = "type_check")] signature: JavaType,
+    ) -> Self {
         assert_non_null!(object, "GlobalJavaObject::new: object is null");
 
         Self {
             object: Arc::new(Mutex::new(GlobalJavaObjectInternal::new(object, jvm))),
+            #[cfg(feature = "type_check")]
             signature,
         }
     }
@@ -315,8 +335,18 @@ impl Debug for GlobalJavaObject {
 }
 
 impl GetSignature for GlobalJavaObject {
-    fn get_signature(&self) -> &JavaType {
-        &self.signature
+    #[cfg(feature = "type_check")]
+    fn get_signature(&self) -> JavaType {
+        self.signature.clone()
+    }
+
+    #[cfg(not(feature = "type_check"))]
+    fn get_signature(&self) -> JavaType {
+        self.get_vm()
+            .attach_thread()
+            .unwrap()
+            .get_object_signature(JavaObject::from(self))
+            .unwrap()
     }
 }
 
@@ -352,9 +382,11 @@ impl<'a> TryFrom<LocalJavaObject<'a>> for GlobalJavaObject {
 
     fn try_from(mut local: LocalJavaObject<'a>) -> Result<GlobalJavaObject, Self::Error> {
         local.free = false;
-        local
-            .env
-            .new_global_object(local.object, local.signature.clone())
+        local.env.new_global_object(
+            local.object,
+            #[cfg(feature = "type_check")]
+            local.signature.clone(),
+        )
     }
 }
 
@@ -363,10 +395,11 @@ impl<'a> TryFrom<JavaString<'a>> for GlobalJavaObject {
 
     fn try_from(mut string: JavaString<'a>) -> Result<GlobalJavaObject, Self::Error> {
         string.0.free = false;
-        string
-            .0
-            .env
-            .new_global_object(string.0.object, JavaType::string())
+        string.0.env.new_global_object(
+            string.0.object,
+            #[cfg(feature = "type_check")]
+            JavaType::string(),
+        )
     }
 }
 

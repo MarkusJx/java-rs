@@ -14,7 +14,12 @@ pub struct JavaString<'a>(pub(in crate::java::objects) LocalJavaObject<'a>);
 
 impl<'a> JavaString<'a> {
     pub(in crate::java) fn new(env: &'a JavaEnvWrapper<'a>, string: sys::jstring) -> Self {
-        Self(LocalJavaObject::new(string, env, JavaType::string()))
+        Self(LocalJavaObject::new(
+            string,
+            env,
+            #[cfg(feature = "type_check")]
+            JavaType::string(),
+        ))
     }
 
     pub(in crate::java) fn _try_from(
@@ -44,13 +49,14 @@ impl<'a> JavaString<'a> {
         Self(LocalJavaObject::new(
             string,
             env.get_env(),
+            #[cfg(feature = "type_check")]
             JavaType::string(),
         ))
     }
 }
 
 impl<'a> GetSignature for JavaString<'a> {
-    fn get_signature(&self) -> &JavaType {
+    fn get_signature(&self) -> JavaType {
         self.0.get_signature()
     }
 }

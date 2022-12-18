@@ -24,7 +24,9 @@ use crate::java::traits::GetRaw;
 use crate::java::util::util::{jni_error_to_string, ResultType};
 use crate::java::vm_ptr::JavaVMPtr;
 use crate::objects::args::AsJavaArg;
+#[cfg(feature = "type_check")]
 use crate::signature::Signature;
+#[cfg(feature = "type_check")]
 use crate::traits::GetSignature;
 use crate::{
     assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
@@ -94,7 +96,12 @@ impl<'a> JavaEnvWrapper<'a> {
             return Err(self.get_last_error(file!(), line!(), true, "GetObjectClass failed")?);
         }
 
-        Ok(JavaClass::new(class, self, object.get_signature().clone()))
+        Ok(JavaClass::new(
+            class,
+            self,
+            #[cfg(feature = "type_check")]
+            object.get_signature().clone(),
+        ))
     }
 
     pub fn get_object_signature(&self, object: JavaObject) -> ResultType<JavaType> {
@@ -110,7 +117,11 @@ impl<'a> JavaEnvWrapper<'a> {
         let java_name = get_name
             .call(JavaObject::from(class), &[])?
             .ok_or("Class.getName() returned null".to_string())?;
-        let name = JavaString::try_from(java_name)?.to_string()?;
+
+        // As JavaString::try_from calls get_object_signature in order
+        // to check if the passed type is a string, we need to get the
+        // string manually in order to prevent a stack overflow.
+        let name = unsafe { self.get_string_utf_chars(java_name.get_raw())? };
 
         Ok(JavaType::new(name, true))
     }
@@ -186,7 +197,12 @@ impl<'a> JavaEnvWrapper<'a> {
             return Err(JNIError::from("Call to ExceptionOccurred failed").into());
         }
 
-        Ok(LocalJavaObject::new(throwable, self, JavaType::object()))
+        Ok(LocalJavaObject::new(
+            throwable,
+            self,
+            #[cfg(feature = "type_check")]
+            JavaType::object(),
+        ))
     }
 
     /// Convert the frames of the last pending exception to a rust error.
@@ -352,7 +368,7 @@ impl<'a> JavaEnvWrapper<'a> {
     pub fn new_global_object(
         &self,
         object: sys::jobject,
-        signature: JavaType,
+        #[cfg(feature = "type_check")] signature: JavaType,
     ) -> ResultType<GlobalJavaObject> {
         assert_non_null!(object);
         unsafe {
@@ -368,6 +384,7 @@ impl<'a> JavaEnvWrapper<'a> {
                     .as_ref()
                     .ok_or("The jvm was unset".to_string())?
                     .clone(),
+                #[cfg(feature = "type_check")]
                 signature,
             ))
         }
@@ -397,6 +414,7 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(JavaClass::new(
                 class,
                 &self,
+                #[cfg(feature = "type_check")]
                 JavaType::new(class_name.to_string(), true),
             ))
         }
@@ -436,6 +454,7 @@ impl<'a> JavaEnvWrapper<'a> {
 
         Ok(JavaClass::from_local(
             res.assign_env(self),
+            #[cfg(feature = "type_check")]
             JavaType::new(class_name, true),
         ))
     }
@@ -474,6 +493,7 @@ impl<'a> JavaEnvWrapper<'a> {
                     class_loader.as_arg(),
                 ])?
                 .ok_or("Class.forName() returned null".to_string())?,
+            #[cfg(feature = "type_check")]
             JavaType::new(class_name, true),
         )?;
         Ok(cls)
@@ -530,7 +550,9 @@ impl<'a> JavaEnvWrapper<'a> {
                 class,
                 JavaType::from_method_return_type(signature)?,
                 false,
+                #[cfg(feature = "type_check")]
                 Signature::from_jni(signature)?,
+                #[cfg(feature = "type_check")]
                 method_name.to_string(),
             ))
         }
@@ -566,7 +588,9 @@ impl<'a> JavaEnvWrapper<'a> {
                 class,
                 JavaType::from_method_return_type(signature)?,
                 true,
+                #[cfg(feature = "type_check")]
                 Signature::from_jni(signature)?,
+                #[cfg(feature = "type_check")]
                 method_name.to_string(),
             ))
         }
@@ -575,8 +599,9 @@ impl<'a> JavaEnvWrapper<'a> {
     unsafe fn convert_args(
         &self,
         args: JavaArgs,
-        signature: &Signature,
+        #[cfg(feature = "type_check")] signature: &Signature,
     ) -> ResultType<Vec<sys::jvalue>> {
+        #[cfg(feature = "type_check")]
         if !signature.matches(&args) {
             Err(format!(
                 "The arguments do not match the method signature: ({}) != {}",
@@ -590,6 +615,9 @@ impl<'a> JavaEnvWrapper<'a> {
         } else {
             Ok(args.iter().map(|arg| arg.to_java_value().value()).collect())
         }
+
+        #[cfg(not(feature = "type_check"))]
+        Ok(args.iter().map(|arg| arg.to_java_value().value()).collect())
     }
 
     pub fn call_object_method(
@@ -609,7 +637,12 @@ impl<'a> JavaEnvWrapper<'a> {
         resolve_errors: bool,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
-            let args = self.convert_args(args, method.get_signature())?;
+            let args = self.convert_args(
+                args,
+                #[cfg(feature = "type_check")]
+                method.get_signature(),
+            )?;
+
             let obj = self.methods.CallObjectMethodA.unwrap()(
                 self.env,
                 object.get_raw(),
@@ -631,6 +664,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 Some(LocalJavaObject::new(
                     obj,
                     self,
+                    #[cfg(feature = "type_check")]
                     method.get_signature().get_return_type().clone(),
                 ))
             })
@@ -644,7 +678,12 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs<'_>,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
         unsafe {
-            let args = self.convert_args(args, method.get_signature())?;
+            let args = self.convert_args(
+                args,
+                #[cfg(feature = "type_check")]
+                method.get_signature(),
+            )?;
+
             let obj = self.methods.CallStaticObjectMethodA.unwrap()(
                 self.env,
                 class.class(),
@@ -663,10 +702,10 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(if obj.is_null() {
                 None
             } else {
-                //println!("{}", method.get_signature().get_return_type());
                 Some(LocalJavaObject::new(
                     obj,
                     self,
+                    #[cfg(feature = "type_check")]
                     method.get_signature().get_return_type().clone(),
                 ))
             })
@@ -817,6 +856,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 Ok(Some(JavaObject::from(LocalJavaObject::new(
                     res,
                     self,
+                    #[cfg(feature = "type_check")]
                     field.get_signature().clone(),
                 ))))
             }
@@ -863,6 +903,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 Ok(Some(JavaObject::from(LocalJavaObject::new(
                     res,
                     self,
+                    #[cfg(feature = "type_check")]
                     field.get_signature().clone(),
                 ))))
             }
@@ -1026,6 +1067,7 @@ impl<'a> JavaEnvWrapper<'a> {
                 Ok(Some(LocalJavaObject::new(
                     obj,
                     self,
+                    #[cfg(feature = "type_check")]
                     array
                         .get_signature()
                         .inner()
@@ -1104,6 +1146,7 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(JavaObjectArray::from(LocalJavaObject::new(
                 arr,
                 self,
+                #[cfg(feature = "type_check")]
                 JavaType::array(class.get_signature().clone()),
             )))
         }
@@ -1268,7 +1311,11 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs,
     ) -> ResultType<LocalJavaObject<'a>> {
         let res = unsafe {
-            let args = self.convert_args(args, constructor.get_signature())?;
+            let args = self.convert_args(
+                args,
+                #[cfg(feature = "type_check")]
+                constructor.get_signature(),
+            )?;
             self.methods.NewObjectA.unwrap()(
                 self.env,
                 constructor.class(),
@@ -1283,6 +1330,7 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(LocalJavaObject::new(
                 res,
                 self,
+                #[cfg(feature = "type_check")]
                 constructor.get_class().get_signature().clone(),
             ))
         }
@@ -1308,6 +1356,7 @@ impl<'a> JavaEnvWrapper<'a> {
             Ok(JavaConstructor::new(
                 id,
                 class,
+                #[cfg(feature = "type_check")]
                 Signature::from_jni(signature)?,
             ))
         }

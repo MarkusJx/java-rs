@@ -8,7 +8,11 @@ macro_rules! define_call_methods {
             args: JavaArgs,
         ) -> ResultType<$result_type> {
             unsafe {
-                let args = self.convert_args(args, method.get_signature())?;
+                let args = self.convert_args(
+                    args,
+                    #[cfg(feature = "type_check")]
+                    method.get_signature(),
+                )?;
                 let $result_name = self.methods.$method.unwrap()(
                     self.env,
                     object.get_raw(),
@@ -35,7 +39,11 @@ macro_rules! define_call_methods {
             args: JavaArgs,
         ) -> ResultType<$result_type> {
             unsafe {
-                let args = self.convert_args(args, method.get_signature())?;
+                let args = self.convert_args(
+                    args,
+                    #[cfg(feature = "type_check")]
+                    method.get_signature(),
+                )?;
                 let $result_name = self.methods.$static_method.unwrap()(
                     self.env,
                     class.class(),
@@ -93,6 +101,7 @@ macro_rules! define_array_methods {
             Ok(<$result_type>::from(LocalJavaObject::new(
                 arr,
                 self,
+                #[cfg(feature = "type_check")]
                 JavaType::new($signature.to_string(), false),
             )))
         }
@@ -147,9 +156,15 @@ macro_rules! define_java_methods {
         impl<'a> $name<'a> {
             #[allow(dead_code)]
             pub fn new(method: JavaMethod<'a>) -> ResultType<Self> {
-                if !$allowed_types.contains(&method.get_signature().get_return_type().type_enum()) {
+                #[cfg(feature = "type_check")]
+                let signature = method.get_signature().get_return_type().type_enum();
+                #[cfg(not(feature = "type_check"))]
+                let signature = method.return_type.type_enum();
+
+                if !$allowed_types.contains(&signature) {
                     let allowed_types = $allowed_types;
-                    Err(format!(
+                    #[cfg(feature = "type_check")]
+                    return Err(format!(
                         "Invalid return type for method '{}'. Expected one of [{}] vs. {}",
                         method.get_java_signature(),
                         allowed_types
@@ -159,7 +174,18 @@ macro_rules! define_java_methods {
                             .join(", "),
                         method.get_signature().get_return_type().type_enum(),
                     )
-                    .into())
+                    .into());
+
+                    #[cfg(not(feature = "type_check"))]
+                    return Err(format!(
+                        "Invalid return type for this method. Expected one of [{}]",
+                        allowed_types
+                            .iter()
+                            .map(|t| t.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", "),
+                    )
+                    .into());
                 } else {
                     Ok(Self(method))
                 }
@@ -188,6 +214,7 @@ macro_rules! define_java_methods {
                 let t = method.return_type.type_enum();
                 let allowed_types = $allowed_types;
                 if !allowed_types.contains(&t) {
+                    #[cfg(feature = "type_check")]
                     return Err(format!(
                         "{} is not a valid return type for method '{}', allowed types are: [{}]",
                         t,
@@ -199,6 +226,9 @@ macro_rules! define_java_methods {
                             .join(", ")
                     )
                     .into());
+
+                    #[cfg(not(feature = "type_check"))]
+                    return Err(format!("{} is not a valid return type for this method", t,).into());
                 }
 
                 Ok(Self(JavaMethod::new(
@@ -206,7 +236,9 @@ macro_rules! define_java_methods {
                     &class,
                     method.return_type,
                     method.is_static,
+                    #[cfg(feature = "type_check")]
                     method.signature,
+                    #[cfg(feature = "type_check")]
                     method.name,
                 )))
             }
@@ -244,9 +276,15 @@ macro_rules! define_java_methods {
         impl<'a> $static_name<'a> {
             #[allow(dead_code)]
             pub fn new(method: JavaMethod<'a>) -> ResultType<Self> {
-                if !$allowed_types.contains(&method.get_signature().get_return_type().type_enum()) {
+                #[cfg(feature = "type_check")]
+                let signature = method.get_signature().get_return_type().type_enum();
+                #[cfg(not(feature = "type_check"))]
+                let signature = method.return_type.type_enum();
+
+                if !$allowed_types.contains(&signature) {
                     let allowed_types = $allowed_types;
-                    Err(format!(
+                    #[cfg(feature = "type_check")]
+                    return Err(format!(
                         "Invalid return type for method '{}'. Expected [{}] vs. {}",
                         method.get_java_signature(),
                         allowed_types
@@ -256,7 +294,18 @@ macro_rules! define_java_methods {
                             .join(", "),
                         method.get_signature().get_return_type().type_enum(),
                     )
-                    .into())
+                    .into());
+
+                    #[cfg(not(feature = "type_check"))]
+                    return Err(format!(
+                        "Invalid return type for this method. Expected [{}]",
+                        allowed_types
+                            .iter()
+                            .map(|t| t.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", "),
+                    )
+                    .into());
                 } else {
                     Ok(Self(method))
                 }
@@ -280,6 +329,7 @@ macro_rules! define_java_methods {
                 let t = method.return_type.type_enum();
                 let allowed_types = $allowed_types;
                 if !allowed_types.contains(&t) {
+                    #[cfg(feature = "type_check")]
                     return Err(format!(
                         "{} is not a valid return type for method '{}', allowed types are: [{}]",
                         t,
@@ -291,6 +341,9 @@ macro_rules! define_java_methods {
                             .join(", "),
                     )
                     .into());
+
+                    #[cfg(not(feature = "type_check"))]
+                    return Err(format!("{} is not a valid return type for this method", t,).into());
                 }
 
                 Ok(Self(JavaMethod::new(
@@ -298,7 +351,9 @@ macro_rules! define_java_methods {
                     &class,
                     method.return_type,
                     method.is_static,
+                    #[cfg(feature = "type_check")]
                     method.signature,
+                    #[cfg(feature = "type_check")]
                     method.name,
                 )))
             }
@@ -365,7 +420,7 @@ macro_rules! define_array {
         }
 
         impl GetSignature for $name<'_> {
-            fn get_signature(&self) -> &JavaType {
+            fn get_signature(&self) -> JavaType {
                 self.0.get_signature()
             }
         }

@@ -3,15 +3,16 @@ name = "java-rs"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 libloading = "0.7.4"
 lazy_static = "1.4.0"
 java-locator = "0.1.2"
-regex = "1"
+regex = { version = "1", optional = true }
 
 [build-dependencies]
 bindgen = "0.63.0"
 java-locator = "0.1.2"
 build-target = "0.4.0"
+
+[features]
+type_check = ["dep:regex"]
