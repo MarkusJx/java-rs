@@ -36,7 +36,7 @@ jobs:
                   RUSTFLAGS: -Zsanitizer=address
                   ASAN_OPTIONS: detect_leaks=0
                   RUSTDOCFLAGS: -Zsanitizer=address
-                  LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/12/libasan.so
+                  LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/11/libasan.so
 
             - name: Clear the cargo caches
               run: |
