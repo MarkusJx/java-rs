@@ -1,13 +1,10 @@
 name: Address Sanitizer
 
-env:
-    DEBUG: 'napi:*'
-
 on:
     push:
 
 jobs:
-    build_and_test:
+    test-with-asan:
         runs-on: ubuntu-22.04
 
         steps:
@@ -15,7 +12,7 @@ jobs:
 
             - name: Setup java 17
               run: |
-                wget https://www.dropbox.com/s/chrfc3fr864y6be/jdk.zip
+                wget -q https://www.dropbox.com/s/chrfc3fr864y6be/jdk.zip
                 unzip -q jdk.zip
                 echo "JAVA_HOME=$(pwd)/jdk" >> $GITHUB_ENV
 
@@ -39,7 +36,7 @@ jobs:
                   RUSTFLAGS: -Zsanitizer=address
                   #ASAN_OPTIONS: detect_leaks=0
                   RUSTDOCFLAGS: -Zsanitizer=address
-                  #LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/9/libasan.so
+                  LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/12/libasan.so
 
             - name: Clear the cargo caches
               run: |
