@@ -34,7 +34,7 @@ jobs:
                   RUST_TARGET: x86_64-unknown-linux-gnu
                   RUST_BACKTRACE: 1
                   RUSTFLAGS: -Zsanitizer=address
-                  #ASAN_OPTIONS: detect_leaks=0
+                  ASAN_OPTIONS: detect_leaks=0
                   RUSTDOCFLAGS: -Zsanitizer=address
                   LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/9/libasan.so
 
