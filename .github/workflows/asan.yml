@@ -12,7 +12,7 @@ jobs:
 
             - name: Setup java 17
               run: |
-                wget -q https://www.dropbox.com/s/m15opbdv2gv3k5k/jdk.zip
+                wget -q https://www.dropbox.com/s/rwous1o9d4xch47/jdk.zip
                 unzip -q jdk.zip
                 echo "JAVA_HOME=$(pwd)/jdk" >> $GITHUB_ENV
 
