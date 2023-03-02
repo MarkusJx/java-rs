@@ -32,11 +32,11 @@ jobs:
               run: cargo test --all-features -Zbuild-std --target=x86_64-unknown-linux-gnu
               env:
                   #RUST_TARGET: x86_64-unknown-linux-gnu
-                  #RUST_BACKTRACE: 1
-                  RUSTFLAGS: -Zsanitizer=address
+                  RUST_BACKTRACE: 1
+                  RUSTFLAGS: '-Clinker=clang -Zsanitizer=address'
                   ASAN_OPTIONS: detect_leaks=0
                   RUSTDOCFLAGS: -Zsanitizer=address
-                  LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/9/libasan.so
+                  #LD_PRELOAD: /usr/lib/gcc/x86_64-linux-gnu/9/libasan.so
 
             - name: Clear the cargo caches
               run: |
