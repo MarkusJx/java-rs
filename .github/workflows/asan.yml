@@ -12,7 +12,7 @@ jobs:
             - uses: addnab/docker-run-action@v3
               with:
                 registry: gcr.io
-                image: markusjx/prebuilt-debug-jdk:17-bullseye
+                image: ghcr.io/markusjx/prebuilt-debug-jdk:17-bullseye
                 options: -v ${{ github.workspace }}:/app
                 run: |
                   cargo update
