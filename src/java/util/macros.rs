@@ -391,7 +391,7 @@ macro_rules! define_array {
         impl<'a> $name<'a> {
             pub fn new(env: &'a JavaEnv<'a>, data: &Vec<$type>) -> ResultType<Self> {
                 #[cfg(feature = "log")]
-                crate::debug!(
+                crate::trace!(
                     "Creating {} array of with length {}",
                     stringify!($name),
                     data.len()

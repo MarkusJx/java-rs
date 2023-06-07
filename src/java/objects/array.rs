@@ -45,7 +45,7 @@ pub struct JavaObjectArray<'a>(JavaArray<'a>);
 impl<'a> JavaObjectArray<'a> {
     pub fn new(class: &'a JavaClass<'a>, length: usize) -> ResultType<Self> {
         #[cfg(feature = "log")]
-        crate::debug!(
+        crate::trace!(
             "Creating object array of type {} with length {}",
             class.get_signature(),
             length
@@ -59,7 +59,7 @@ impl<'a> JavaObjectArray<'a> {
         class: &'a JavaClass<'a>,
     ) -> ResultType<Self> {
         #[cfg(feature = "log")]
-        crate::debug!(
+        crate::trace!(
             "Creating object array of type {} with length {}",
             class.get_signature(),
             objects.len()

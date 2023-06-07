@@ -72,7 +72,7 @@ impl<'a> LocalJavaObject<'a> {
 
     pub fn from(object: &'a GlobalJavaObject, env: &'a JavaEnv<'a>) -> Self {
         #[cfg(feature = "type_check")]
-        crate::debug!(
+        crate::trace!(
             "Creating local java object from global java object with signature: {}",
             object.signature
         );
