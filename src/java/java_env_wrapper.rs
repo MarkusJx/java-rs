@@ -54,6 +54,12 @@ pub struct JavaEnvWrapper<'a> {
 impl<'a> JavaEnvWrapper<'a> {
     /// You should probably not use this.
     pub(crate) fn new(jvm: Arc<Mutex<JavaVMPtr>>, env: *mut sys::JNIEnv) -> Self {
+        #[cfg(feature = "log")]
+        crate::debug!(
+            "Creating JavaEnv in thread {:?}",
+            std::thread::current().id()
+        );
+
         assert_non_null!(env, "JavaEnvWrapper::new: env is null");
         Self {
             jvm: Some(jvm),
@@ -370,6 +376,9 @@ impl<'a> JavaEnvWrapper<'a> {
         object: sys::jobject,
         #[cfg(feature = "type_check")] signature: JavaType,
     ) -> ResultType<GlobalJavaObject> {
+        #[cfg(feature = "type_check")]
+        crate::debug!("Creating global reference to object of type {}", signature);
+
         assert_non_null!(object);
         unsafe {
             let obj = self.methods.NewGlobalRef.unwrap()(self.env, object);
@@ -399,7 +408,9 @@ impl<'a> JavaEnvWrapper<'a> {
         class_name: &str,
         resolve_errors: bool,
     ) -> ResultType<JavaClass<'a>> {
+        crate::debug!("Resolving class '{}'", class_name);
         let c_class_name = CString::new(class_name)?;
+
         unsafe {
             let class = self.methods.FindClass.unwrap()(self.env, c_class_name.as_ptr());
             if self.is_err() || class.is_null() {
@@ -422,10 +433,12 @@ impl<'a> JavaEnvWrapper<'a> {
 
     /// Get `java.lang.Class`
     pub fn get_java_lang_class(&'a self) -> ResultType<JavaClass<'a>> {
+        crate::debug!("Getting java.lang.Class");
         self.find_class("java/lang/Class", true)
     }
 
     pub fn find_class_by_java_name(&'a self, class_name: String) -> ResultType<JavaClass<'a>> {
+        crate::debug!("Resolving class '{}'", class_name);
         let class = self.get_java_lang_class()?;
         let for_name = class.get_static_object_method(
             "forName",
@@ -467,6 +480,7 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         class_name: String,
     ) -> ResultType<GlobalJavaClass> {
+        crate::debug!("Resolving class '{}'", class_name);
         let class = self.get_java_lang_class()?;
         let for_name = class.get_static_object_method(
             "forName",
@@ -526,6 +540,8 @@ impl<'a> JavaEnvWrapper<'a> {
         signature: &str,
         resolve_errors: bool,
     ) -> ResultType<JavaMethod<'a>> {
+        crate::trace!("Getting method id for {}{}", method_name, signature);
+
         let method_name_str = CString::new(method_name)?;
         let signature_str = CString::new(signature)?;
         unsafe {
@@ -564,6 +580,8 @@ impl<'a> JavaEnvWrapper<'a> {
         method_name: &str,
         signature: &str,
     ) -> ResultType<JavaMethod<'a>> {
+        crate::trace!("Getting static method id for {}{}", method_name, signature);
+
         let method_name_str = CString::new(method_name)?;
         let signature_str = CString::new(signature)?;
         unsafe {
@@ -636,6 +654,13 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs<'_>,
         resolve_errors: bool,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
+        #[cfg(feature = "log")]
+        crate::trace!(
+            "Calling object method {} with {} args",
+            method.get_signature(),
+            args.len()
+        );
+
         unsafe {
             let args = self.convert_args(
                 args,
@@ -677,6 +702,13 @@ impl<'a> JavaEnvWrapper<'a> {
         method: &JavaMethod<'_>,
         args: JavaArgs<'_>,
     ) -> ResultType<Option<LocalJavaObject<'a>>> {
+        #[cfg(feature = "log")]
+        crate::trace!(
+            "Calling static object method {} with {} args",
+            method.get_signature(),
+            args.len()
+        );
+
         unsafe {
             let args = self.convert_args(
                 args,
@@ -809,6 +841,9 @@ impl<'a> JavaEnvWrapper<'a> {
         signature: JavaType,
         is_static: bool,
     ) -> ResultType<JavaField<'a>> {
+        #[cfg(feature = "log")]
+        crate::trace!("Getting field {} with signature {}", name, signature);
+
         let field_name = CString::new(name.clone())?;
         let field_signature = CString::new(signature.to_jni_type())?;
         unsafe {
@@ -846,6 +881,9 @@ impl<'a> JavaEnvWrapper<'a> {
         field: &JavaObjectField<'_>,
         object: &JavaObject<'_>,
     ) -> ResultType<Option<JavaObject<'a>>> {
+        #[cfg(feature = "log")]
+        crate::trace!("Getting object field {}", field.get_signature());
+
         unsafe {
             let res = self.methods.GetObjectField.unwrap()(self.env, object.get_raw(), field.id());
             if self.is_err() {
@@ -869,6 +907,9 @@ impl<'a> JavaEnvWrapper<'a> {
         object: &JavaObject<'_>,
         value: Option<JavaObject<'_>>,
     ) -> ResultType<()> {
+        #[cfg(feature = "log")]
+        crate::trace!("Setting object field {}", field.get_signature());
+
         unsafe {
             self.methods.SetObjectField.unwrap()(
                 self.env,
@@ -892,6 +933,9 @@ impl<'a> JavaEnvWrapper<'a> {
         field: &StaticJavaObjectField,
         class: &JavaClass<'_>,
     ) -> ResultType<Option<JavaObject<'a>>> {
+        #[cfg(feature = "log")]
+        crate::trace!("Getting static object field {}", field.get_signature());
+
         unsafe {
             let res =
                 self.methods.GetStaticObjectField.unwrap()(self.env, class.class(), field.id());
@@ -916,6 +960,9 @@ impl<'a> JavaEnvWrapper<'a> {
         class: &JavaClass<'_>,
         value: Option<JavaObject<'_>>,
     ) -> ResultType<()> {
+        #[cfg(feature = "log")]
+        crate::trace!("Setting static object field {}", field.get_signature());
+
         unsafe {
             self.methods.SetStaticObjectField.unwrap()(
                 self.env,

@@ -1,8 +1,11 @@
+use crate::error;
+
 #[derive(Debug)]
 pub struct LibraryError(String);
 
 impl LibraryError {
     pub fn new(msg: &str) -> Self {
+        error!("LibraryError: {}", msg);
         Self(msg.to_string())
     }
 }

@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-libloading = "0.7.4"
+libloading = "0.8"
 lazy_static = "1.4.0"
 java-locator = "0.1.2"
 regex = { version = "1", optional = true }
+log = { version = "0.4", optional = true }
 
 [build-dependencies]
 bindgen = "0.63.0"
@@ -16,3 +17,4 @@ build-target = "0.4.0"
 
 [features]
 type_check = ["dep:regex"]
+log = ["dep:log", "type_check"]

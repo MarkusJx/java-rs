@@ -44,6 +44,13 @@ pub struct JavaObjectArray<'a>(JavaArray<'a>);
 
 impl<'a> JavaObjectArray<'a> {
     pub fn new(class: &'a JavaClass<'a>, length: usize) -> ResultType<Self> {
+        #[cfg(feature = "log")]
+        crate::debug!(
+            "Creating object array of type {} with length {}",
+            class.get_signature(),
+            length
+        );
+
         class.env().create_object_array(class, length as i32)
     }
 
@@ -51,6 +58,13 @@ impl<'a> JavaObjectArray<'a> {
         objects: Vec<Option<JavaObject<'a>>>,
         class: &'a JavaClass<'a>,
     ) -> ResultType<Self> {
+        #[cfg(feature = "log")]
+        crate::debug!(
+            "Creating object array of type {} with length {}",
+            class.get_signature(),
+            objects.len()
+        );
+
         let mut array = JavaObjectArray::new(class, objects.len())?;
         for (i, object) in objects.into_iter().enumerate() {
             array.set(i as i32, object)?;

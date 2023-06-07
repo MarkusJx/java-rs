@@ -7,6 +7,14 @@ macro_rules! define_call_methods {
             method: &'b JavaMethod<'b>,
             args: JavaArgs,
         ) -> ResultType<$result_type> {
+            #[cfg(feature = "log")]
+            crate::trace!(
+                "Calling {} method {} with {} args",
+                stringify!($result_type),
+                method.get_signature(),
+                args.len()
+            );
+
             unsafe {
                 let args = self.convert_args(
                     args,
@@ -38,6 +46,14 @@ macro_rules! define_call_methods {
             method: &'a JavaMethod<'a>,
             args: JavaArgs,
         ) -> ResultType<$result_type> {
+            #[cfg(feature = "log")]
+            crate::trace!(
+                "Calling static {} method {} with {} args",
+                stringify!($result_type),
+                method.get_signature(),
+                args.len()
+            );
+
             unsafe {
                 let args = self.convert_args(
                     args,
@@ -374,6 +390,13 @@ macro_rules! define_array {
 
         impl<'a> $name<'a> {
             pub fn new(env: &'a JavaEnv<'a>, data: &Vec<$type>) -> ResultType<Self> {
+                #[cfg(feature = "log")]
+                crate::debug!(
+                    "Creating {} array of with length {}",
+                    stringify!($name),
+                    data.len()
+                );
+
                 env.get_env().$new_fn(data)
             }
 
@@ -664,6 +687,13 @@ macro_rules! define_field_methods {
             field: &$value_type,
             object: &JavaObject,
         ) -> ResultType<$result_type> {
+            #[cfg(feature = "log")]
+            crate::trace!(
+                "Getting {} field on object {}",
+                stringify!($result_type),
+                object.get_signature()
+            );
+
             unsafe {
                 let res =
                     self.methods.$getter_method.unwrap()(self.env, object.get_raw(), field.id());
@@ -686,6 +716,13 @@ macro_rules! define_field_methods {
             object: &JavaObject,
             value: $result_type,
         ) -> ResultType<()> {
+            #[cfg(feature = "log")]
+            crate::trace!(
+                "Setting {} field on object {}",
+                stringify!($result_type),
+                object.get_signature()
+            );
+
             unsafe {
                 self.methods.$setter_method.unwrap()(self.env, object.get_raw(), field.id(), value);
                 if self.is_err() {
@@ -773,6 +810,7 @@ macro_rules! assert_non_null {
     };
     ($value: expr, $message: expr) => {
         if $value.is_null() {
+            crate::debug!($message);
             panic!($message);
         }
     };
