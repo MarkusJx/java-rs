@@ -29,9 +29,6 @@ impl<'a> JavaClass<'a> {
         env: &'a JavaEnvWrapper<'a>,
         #[cfg(feature = "type_check")] signature: JavaType,
     ) -> Self {
-        #[cfg(feature = "type_check")]
-        crate::debug!("Creating JavaClass with signature: {}", signature);
-
         assert_non_null!(object);
         Self {
             object: LocalJavaObject::new(

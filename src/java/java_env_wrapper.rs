@@ -29,7 +29,7 @@ use crate::signature::Signature;
 #[cfg(feature = "type_check")]
 use crate::traits::GetSignature;
 use crate::{
-    assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
+    assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys, trace,
 };
 use std::borrow::Borrow;
 use std::error::Error;
@@ -55,7 +55,7 @@ impl<'a> JavaEnvWrapper<'a> {
     /// You should probably not use this.
     pub(crate) fn new(jvm: Arc<Mutex<JavaVMPtr>>, env: *mut sys::JNIEnv) -> Self {
         #[cfg(feature = "log")]
-        crate::debug!(
+        crate::trace!(
             "Creating JavaEnv in thread {:?}",
             std::thread::current().id()
         );
@@ -377,7 +377,7 @@ impl<'a> JavaEnvWrapper<'a> {
         #[cfg(feature = "type_check")] signature: JavaType,
     ) -> ResultType<GlobalJavaObject> {
         #[cfg(feature = "type_check")]
-        crate::debug!("Creating global reference to object of type {}", signature);
+        crate::trace!("Creating global reference to object of type {}", signature);
 
         assert_non_null!(object);
         unsafe {
@@ -408,7 +408,7 @@ impl<'a> JavaEnvWrapper<'a> {
         class_name: &str,
         resolve_errors: bool,
     ) -> ResultType<JavaClass<'a>> {
-        crate::debug!("Resolving class '{}'", class_name);
+        crate::trace!("Resolving class '{}'", class_name);
         let c_class_name = CString::new(class_name)?;
 
         unsafe {
@@ -433,12 +433,12 @@ impl<'a> JavaEnvWrapper<'a> {
 
     /// Get `java.lang.Class`
     pub fn get_java_lang_class(&'a self) -> ResultType<JavaClass<'a>> {
-        crate::debug!("Getting java.lang.Class");
+        crate::trace!("Getting java.lang.Class");
         self.find_class("java/lang/Class", true)
     }
 
     pub fn find_class_by_java_name(&'a self, class_name: String) -> ResultType<JavaClass<'a>> {
-        crate::debug!("Resolving class '{}'", class_name);
+        crate::trace!("Resolving class '{}'", class_name);
         let class = self.get_java_lang_class()?;
         let for_name = class.get_static_object_method(
             "forName",
@@ -480,7 +480,7 @@ impl<'a> JavaEnvWrapper<'a> {
         &'a self,
         class_name: String,
     ) -> ResultType<GlobalJavaClass> {
-        crate::debug!("Resolving class '{}'", class_name);
+        crate::trace!("Resolving class '{}'", class_name);
         let class = self.get_java_lang_class()?;
         let for_name = class.get_static_object_method(
             "forName",
@@ -1316,6 +1316,8 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub fn string_to_java_string(&'a self, string: String) -> ResultType<JavaString<'a>> {
+        trace!("Converting '{}' to java string", string);
+
         let c_string = CString::new(string)?;
         unsafe {
             let string = self.methods.NewStringUTF.unwrap()(self.env, c_string.as_ptr());
@@ -1357,6 +1359,13 @@ impl<'a> JavaEnvWrapper<'a> {
         constructor: &JavaConstructor,
         args: JavaArgs,
     ) -> ResultType<LocalJavaObject<'a>> {
+        #[cfg(feature = "log")]
+        trace!(
+            "Creating new instance of {} with {} args",
+            constructor.get_signature(),
+            args.len()
+        );
+
         let res = unsafe {
             let args = self.convert_args(
                 args,
@@ -1388,6 +1397,13 @@ impl<'a> JavaEnvWrapper<'a> {
         class: &'a JavaClass<'a>,
         signature: &str,
     ) -> ResultType<JavaConstructor<'a>> {
+        #[cfg(feature = "log")]
+        trace!(
+            "Getting constructor {} for class {}",
+            signature,
+            class.get_signature()
+        );
+
         let id = unsafe {
             self.methods.GetMethodID.unwrap()(
                 self.env,

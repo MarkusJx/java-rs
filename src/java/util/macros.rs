@@ -810,7 +810,7 @@ macro_rules! assert_non_null {
     };
     ($value: expr, $message: expr) => {
         if $value.is_null() {
-            crate::debug!($message);
+            crate::error!($message);
             panic!($message);
         }
     };

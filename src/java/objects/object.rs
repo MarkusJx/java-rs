@@ -36,8 +36,6 @@ impl<'a> LocalJavaObject<'a> {
         env: &'a JavaEnvWrapper<'a>,
         #[cfg(feature = "type_check")] signature: JavaType,
     ) -> Self {
-        #[cfg(feature = "type_check")]
-        crate::debug!("Creating local java object with signature: {}", signature);
         assert_non_null!(object, "LocalJavaObject::new: object is null");
 
         Self {
@@ -56,13 +54,6 @@ impl<'a> LocalJavaObject<'a> {
         #[cfg(feature = "type_check")] signature: Option<JavaType>,
         #[cfg(not(feature = "type_check"))] _signature: Option<JavaType>,
     ) -> Self {
-        #[cfg(feature = "type_check")]
-        crate::debug!(
-            "Creating local java object with signature: {}",
-            signature
-                .map(|s| s.to_string())
-                .unwrap_or("null".to_string())
-        );
         assert_non_null!(object, "LocalJavaObject::from_raw: object is null");
 
         Self {
