@@ -11,7 +11,7 @@ macro_rules! define_call_methods {
             crate::trace!(
                 "Calling {} method {} with {} args",
                 stringify!($result_type),
-                method.get_signature(),
+                method.get_java_signature(),
                 args.len()
             );
 
@@ -50,7 +50,7 @@ macro_rules! define_call_methods {
             crate::trace!(
                 "Calling static {} method {} with {} args",
                 stringify!($result_type),
-                method.get_signature(),
+                method.get_java_signature(),
                 args.len()
             );
 

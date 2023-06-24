@@ -29,7 +29,7 @@ use crate::signature::Signature;
 #[cfg(feature = "type_check")]
 use crate::traits::GetSignature;
 use crate::{
-    assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys, trace,
+    assert_non_null, define_array_methods, define_call_methods, define_field_methods, sys,
 };
 use std::borrow::Borrow;
 use std::error::Error;
@@ -657,7 +657,7 @@ impl<'a> JavaEnvWrapper<'a> {
         #[cfg(feature = "log")]
         crate::trace!(
             "Calling object method {} with {} args",
-            method.get_signature(),
+            method.get_java_signature(),
             args.len()
         );
 
@@ -705,7 +705,7 @@ impl<'a> JavaEnvWrapper<'a> {
         #[cfg(feature = "log")]
         crate::trace!(
             "Calling static object method {} with {} args",
-            method.get_signature(),
+            method.get_java_signature(),
             args.len()
         );
 
@@ -1316,7 +1316,7 @@ impl<'a> JavaEnvWrapper<'a> {
     }
 
     pub fn string_to_java_string(&'a self, string: String) -> ResultType<JavaString<'a>> {
-        trace!("Converting '{}' to java string", string);
+        crate::trace!("Converting '{}' to java string", string);
 
         let c_string = CString::new(string)?;
         unsafe {
@@ -1360,7 +1360,7 @@ impl<'a> JavaEnvWrapper<'a> {
         args: JavaArgs,
     ) -> ResultType<LocalJavaObject<'a>> {
         #[cfg(feature = "log")]
-        trace!(
+        crate::trace!(
             "Creating new instance of {} with {} args",
             constructor.get_signature(),
             args.len()
@@ -1398,7 +1398,7 @@ impl<'a> JavaEnvWrapper<'a> {
         signature: &str,
     ) -> ResultType<JavaConstructor<'a>> {
         #[cfg(feature = "log")]
-        trace!(
+        crate::trace!(
             "Getting constructor {} for class {}",
             signature,
             class.get_signature()
