@@ -1,5 +1,7 @@
 # java-rs
 
+**Note: The bindings have been moved back into [`node-java-bridge`](https://github.com/MarkusJx/node-java-bridge).**
+
 Bindings to the JVM for rust focussing on calling java methods from rust.
 
 This is mainly used by [`node-java-bridge`](https://github.com/MarkusJx/node-java-bridge).
